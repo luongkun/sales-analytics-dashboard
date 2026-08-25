@@ -13,8 +13,8 @@ import { formatCurrency } from '../data/salesData';
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{label}</p>
         {payload.map((entry) => (
           <p key={entry.name} className="text-sm" style={{ color: entry.color }}>
             {entry.name}: {formatCurrency(entry.value)}
@@ -28,15 +28,15 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function RegionChart({ data }) {
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="mb-6">
-        <h3 className="text-base font-bold text-gray-800">Doanh thu theo khu vực</h3>
-        <p className="text-sm text-gray-500 mt-0.5">So sánh doanh thu 4 quý theo vùng miền</p>
+        <h3 className="text-base font-bold text-gray-800 dark:text-white">Doanh thu theo khu vực</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">So sánh doanh thu 4 quý theo vùng miền</p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
           <XAxis
             dataKey="region"
             axisLine={false}

@@ -10,9 +10,9 @@ import { formatCurrency } from '../data/salesData';
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-semibold text-gray-700">{payload[0].name}</p>
-        <p className="text-sm text-blue-600 font-medium mt-1">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{payload[0].name}</p>
+        <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
           {formatCurrency(payload[0].value)}
         </p>
       </div>
@@ -46,10 +46,10 @@ export default function CategoryChart({ data }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="mb-6">
-        <h3 className="text-base font-bold text-gray-800">Doanh thu theo danh mục</h3>
-        <p className="text-sm text-gray-500 mt-0.5">Phân bổ doanh thu theo loại sản phẩm</p>
+        <h3 className="text-base font-bold text-gray-800 dark:text-white">Doanh thu theo danh mục</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Phân bổ doanh thu theo loại sản phẩm</p>
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -82,8 +82,8 @@ export default function CategoryChart({ data }) {
                 style={{ backgroundColor: item.color }}
               ></span>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">{item.name}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.name}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   {formatCurrency(item.value)} · {((item.value / total) * 100).toFixed(1)}%
                 </p>
               </div>

@@ -84,3 +84,16 @@ export const formatCurrency = (value) => {
 export const formatNumber = (value) => {
   return new Intl.NumberFormat('vi-VN').format(value);
 };
+
+export const recentOrders = [
+  { id: 'ORD-2851', customer: 'Nguyễn Văn An', product: 'iPhone 16 Pro Max', amount: 34990000, date: '25/12/2025', status: 'Hoàn thành' },
+  { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'MacBook Air M4', amount: 32990000, date: '25/12/2025', status: 'Đang giao' },
+  { id: 'ORD-2849', customer: 'Lê Hoàng Cường', product: 'Samsung Galaxy S25', amount: 27990000, date: '24/12/2025', status: 'Đang xử lý' },
+  { id: 'ORD-2848', customer: 'Phạm Minh Duy', product: 'Áo khoác Uniqlo', amount: 1290000, date: '24/12/2025', status: 'Hoàn thành' },
+  { id: 'ORD-2847', customer: 'Hoàng Thị Em', product: 'Nồi chiên không dầu', amount: 2590000, date: '24/12/2025', status: 'Hoàn thành' },
+  { id: 'ORD-2846', customer: 'Vũ Đức Phong', product: 'Robot hút bụi Xiaomi', amount: 7990000, date: '23/12/2025', status: 'Đã hủy' },
+  { id: 'ORD-2845', customer: 'Đỗ Thị Giang', product: 'Giày Nike Air Max', amount: 3890000, date: '23/12/2025', status: 'Đang giao' },
+  { id: 'ORD-2844', customer: 'Bùi Thanh Hải', product: 'Combo thực phẩm sạch', amount: 890000, date: '23/12/2025', status: 'Hoàn thành' },
+  { id: 'ORD-2843', customer: 'Ngô Thị Hương', product: 'iPhone 16 Pro Max', amount: 34990000, date: '22/12/2025', status: 'Hoàn thành' },
+  { id: 'ORD-2842', customer: 'Mai Văn Khoa', product: 'Samsung Galaxy S25', amount: 27990000, date: '22/12/2025', status: 'Đang xử lý' },
+];

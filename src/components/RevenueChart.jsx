@@ -12,9 +12,9 @@ import { formatCurrency } from '../data/salesData';
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-semibold text-gray-700">Tháng {label}</p>
-        <p className="text-sm text-blue-600 font-medium mt-1">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tháng {label}</p>
+        <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
           Doanh thu: {formatCurrency(payload[0].value)}
         </p>
       </div>
@@ -25,15 +25,15 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function RevenueChart({ data }) {
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-base font-bold text-gray-800">Doanh thu theo tháng</h3>
-          <p className="text-sm text-gray-500 mt-0.5">Biểu đồ doanh thu 12 tháng năm 2025</p>
+          <h3 className="text-base font-bold text-gray-800 dark:text-white">Doanh thu theo tháng</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Biểu đồ doanh thu 12 tháng năm 2025</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-          <span className="text-xs text-gray-500">Doanh thu (VNĐ)</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Doanh thu (VNĐ)</span>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export default function RevenueChart({ data }) {
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
           <XAxis
             dataKey="month"
             axisLine={false}

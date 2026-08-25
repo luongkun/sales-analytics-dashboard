@@ -2,19 +2,19 @@ import { formatCurrency, formatNumber } from '../data/salesData';
 import { Trophy, Medal } from 'lucide-react';
 
 const categoryColors = {
-  'Điện tử': 'bg-blue-100 text-blue-700',
-  'Thời trang': 'bg-purple-100 text-purple-700',
-  'Thực phẩm': 'bg-emerald-100 text-emerald-700',
-  'Gia dụng': 'bg-amber-100 text-amber-700',
+  'Điện tử': 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+  'Thời trang': 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
+  'Thực phẩm': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+  'Gia dụng': 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
 };
 
 export default function TopProducts({ data }) {
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-base font-bold text-gray-800">Sản phẩm bán chạy</h3>
-          <p className="text-sm text-gray-500 mt-0.5">Top 8 sản phẩm doanh thu cao nhất</p>
+          <h3 className="text-base font-bold text-gray-800 dark:text-white">Sản phẩm bán chạy</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Top 8 sản phẩm doanh thu cao nhất</p>
         </div>
         <Trophy className="w-5 h-5 text-amber-500" />
       </div>
@@ -22,20 +22,20 @@ export default function TopProducts({ data }) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-2">
+            <tr className="border-b border-gray-100 dark:border-gray-700">
+              <th className="text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider pb-3 pr-2">
                 #
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">
+              <th className="text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider pb-3 pr-4">
                 Sản phẩm
               </th>
-              <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden sm:table-cell">
+              <th className="text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider pb-3 pr-4 hidden sm:table-cell">
                 Danh mục
               </th>
-              <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden md:table-cell">
+              <th className="text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider pb-3 pr-4 hidden md:table-cell">
                 Đã bán
               </th>
-              <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">
+              <th className="text-right text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider pb-3">
                 Doanh thu
               </th>
             </tr>
@@ -44,7 +44,7 @@ export default function TopProducts({ data }) {
             {data.map((product) => (
               <tr
                 key={product.rank}
-                className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
+                className="border-b border-gray-50 dark:border-gray-700/50 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors"
               >
                 <td className="py-3 pr-2">
                   {product.rank <= 3 ? (
@@ -60,26 +60,26 @@ export default function TopProducts({ data }) {
                       {product.rank}
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-400 ml-1.5">{product.rank}</span>
+                    <span className="text-sm text-gray-400 dark:text-gray-500 ml-1.5">{product.rank}</span>
                   )}
                 </td>
                 <td className="py-3 pr-4">
-                  <p className="text-sm font-medium text-gray-800">{product.name}</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{product.name}</p>
                 </td>
                 <td className="py-3 pr-4 hidden sm:table-cell">
                   <span
                     className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      categoryColors[product.category] || 'bg-gray-100 text-gray-700'
+                      categoryColors[product.category] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                     }`}
                   >
                     {product.category}
                   </span>
                 </td>
                 <td className="py-3 pr-4 text-right hidden md:table-cell">
-                  <span className="text-sm text-gray-600">{formatNumber(product.sold)}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{formatNumber(product.sold)}</span>
                 </td>
                 <td className="py-3 text-right">
-                  <span className="text-sm font-semibold text-gray-800">
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                     {formatCurrency(product.revenue)}
                   </span>
                 </td>
