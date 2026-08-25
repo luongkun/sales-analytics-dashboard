@@ -13,16 +13,29 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Tổng quan', active: true },
-  { icon: BarChart3, label: 'Doanh thu' },
-  { icon: ShoppingCart, label: 'Đơn hàng' },
-  { icon: Users, label: 'Khách hàng' },
-  { icon: TrendingUp, label: 'Báo cáo' },
+  { id: 'overview', icon: LayoutDashboard, label: 'Tổng quan' },
+  { id: 'revenue', icon: BarChart3, label: 'Doanh thu' },
+  { id: 'orders', icon: ShoppingCart, label: 'Đơn hàng' },
+  { id: 'customers', icon: Users, label: 'Khách hàng' },
+  { id: 'reports', icon: TrendingUp, label: 'Báo cáo' },
 ];
 
-export default function Layout({ children }) {
+const pageTitles = {
+  overview: 'Dashboard Phân tích Doanh thu',
+  revenue: 'Phân tích Doanh thu',
+  orders: 'Quản lý Đơn hàng',
+  customers: 'Phân tích Khách hàng',
+  reports: 'Báo cáo & KPI',
+};
+
+export default function Layout({ children, activePage, onNavigate }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
+
+  const handleNavClick = (pageId) => {
+    onNavigate(pageId);
+    setSidebarOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -58,9 +71,10 @@ export default function Layout({ children }) {
         <nav className="mt-6 px-3">
           {navItems.map((item) => (
             <button
-              key={item.label}
+              key={item.id}
+              onClick={() => handleNavClick(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mb-1 ${
-                item.active
+                activePage === item.id
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
               }`}
@@ -94,7 +108,9 @@ export default function Layout({ children }) {
               <Menu className="w-6 h-6" />
             </button>
             <div>
-              <h1 className="text-lg font-bold text-gray-800 dark:text-white">Dashboard Phân tích Doanh thu</h1>
+              <h1 className="text-lg font-bold text-gray-800 dark:text-white">
+                {pageTitles[activePage] || 'Dashboard'}
+              </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">Dữ liệu cập nhật: Tháng 12, 2025</p>
             </div>
           </div>

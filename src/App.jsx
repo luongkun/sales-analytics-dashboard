@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { DollarSign, ShoppingCart, Users, TrendingUp } from 'lucide-react';
 import Layout from './components/Layout';
 import StatCard from './components/StatCard';
@@ -8,6 +9,10 @@ import TopProducts from './components/TopProducts';
 import OrderTrendChart from './components/OrderTrendChart';
 import RecentOrders from './components/RecentOrders';
 import AnimatedSection from './components/AnimatedSection';
+import RevenuePage from './pages/RevenuePage';
+import OrdersPage from './pages/OrdersPage';
+import CustomersPage from './pages/CustomersPage';
+import ReportsPage from './pages/ReportsPage';
 import {
   monthlyRevenue,
   categoryRevenue,
@@ -19,10 +24,9 @@ import {
 } from './data/salesData';
 import { ThemeProvider } from './context/ThemeContext';
 
-function App() {
+function OverviewPage() {
   return (
-    <ThemeProvider>
-      <Layout>
+    <>
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <AnimatedSection delay={0}>
@@ -96,7 +100,35 @@ function App() {
           <RecentOrders data={recentOrders} />
         </AnimatedSection>
       </div>
-    </Layout>
+    </>
+  );
+}
+
+function App() {
+  const [activePage, setActivePage] = useState('overview');
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'overview':
+        return <OverviewPage />;
+      case 'revenue':
+        return <RevenuePage />;
+      case 'orders':
+        return <OrdersPage />;
+      case 'customers':
+        return <CustomersPage />;
+      case 'reports':
+        return <ReportsPage />;
+      default:
+        return <OverviewPage />;
+    }
+  };
+
+  return (
+    <ThemeProvider>
+      <Layout activePage={activePage} onNavigate={setActivePage}>
+        {renderPage()}
+      </Layout>
     </ThemeProvider>
   );
 }
