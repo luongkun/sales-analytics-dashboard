@@ -1,11 +1,22 @@
-import React from 'react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend,
 } from 'recharts';
 import { DollarSign, TrendingUp, Calendar } from 'lucide-react';
 import { monthlyRevenue, categoryRevenue, regionRevenue, formatCurrency, formatNumber } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
+import { ExportButton } from '../components/ExportButton';
 
 const RevenuePage = () => {
   return (
@@ -13,7 +24,7 @@ const RevenuePage = () => {
       <AnimatedSection delay={0.1}>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Phân tích Doanh thu</h1>
       </AnimatedSection>
-      
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <AnimatedSection delay={0.2} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
@@ -27,7 +38,7 @@ const RevenuePage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.3} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
@@ -39,7 +50,7 @@ const RevenuePage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.4} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
@@ -61,17 +72,17 @@ const RevenuePage = () => {
             <AreaChart data={monthlyRevenue} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
               <XAxis dataKey="month" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                formatter={(value) => [formatCurrency(value), 'Doanh thu']}
-              />
+<YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
+<Tooltip
+                  contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
+                  formatter={(value) => formatCurrency(value as number)}
+                />
               <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -98,9 +109,9 @@ const RevenuePage = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+<Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => formatCurrency(value)}
+                  formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
               </PieChart>
@@ -114,11 +125,11 @@ const RevenuePage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={regionRevenue}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                <XAxis dataKey="region" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" tickFormatter={(val) => formatCurrency(val)} />
-                <Tooltip 
+<XAxis dataKey="region" stroke="#9ca3af" />
+<YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
+<Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => formatCurrency(value)}
+                  formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
                 <Bar dataKey="q1" name="Quý 1" fill="#3b82f6" />
@@ -133,7 +144,19 @@ const RevenuePage = () => {
 
       {/* Table */}
       <AnimatedSection delay={0.8} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Chi tiết doanh thu theo tháng</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Chi tiết doanh thu theo tháng</h2>
+          <ExportButton
+            data={monthlyRevenue}
+            filename="doanh-thu-theo-thang.csv"
+            columns={[
+              { key: 'month', label: 'Tháng' },
+              { key: 'revenue', label: 'Doanh thu', format: (v) => formatCurrency(v as number) },
+              { key: 'orders', label: 'Đơn hàng', format: (v) => formatNumber(v as number) },
+              { key: 'customers', label: 'Khách hàng', format: (v) => formatNumber(v as number) },
+            ]}
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

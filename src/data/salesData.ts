@@ -1,5 +1,65 @@
-// Dữ liệu doanh thu theo tháng
-export const monthlyRevenue = [
+export interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+  orders: number;
+  customers: number;
+}
+
+export interface CategoryRevenue {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface RegionRevenue {
+  region: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+}
+
+export interface TopProduct {
+  rank: number;
+  name: string;
+  category: string;
+  sold: number;
+  revenue: number;
+}
+
+export interface OrderTrend {
+  week: string;
+  orders: number;
+  returns: number;
+}
+
+export interface RecentOrder {
+  id: string;
+  customer: string;
+  product: string;
+  amount: number;
+  date: string;
+  status: string;
+}
+
+export interface SummaryStats {
+  totalRevenue: number;
+  totalOrders: number;
+  newCustomers: number;
+  growthRate: number;
+  previousRevenue: number;
+  previousOrders: number;
+  previousCustomers: number;
+  previousGrowthRate: number;
+}
+
+export interface OrderStatusData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export const monthlyRevenue: MonthlyRevenue[] = [
   { month: 'T1', revenue: 245000000, orders: 1230, customers: 456 },
   { month: 'T2', revenue: 312000000, orders: 1450, customers: 523 },
   { month: 'T3', revenue: 287000000, orders: 1380, customers: 498 },
@@ -14,23 +74,20 @@ export const monthlyRevenue = [
   { month: 'T12', revenue: 698000000, orders: 3120, customers: 1087 },
 ];
 
-// Dữ liệu doanh thu theo danh mục sản phẩm
-export const categoryRevenue = [
+export const categoryRevenue: CategoryRevenue[] = [
   { name: 'Điện tử', value: 2150000000, color: '#3b82f6' },
   { name: 'Thời trang', value: 1420000000, color: '#8b5cf6' },
   { name: 'Thực phẩm', value: 980000000, color: '#10b981' },
   { name: 'Gia dụng', value: 752000000, color: '#f59e0b' },
 ];
 
-// Dữ liệu doanh thu theo khu vực
-export const regionRevenue = [
+export const regionRevenue: RegionRevenue[] = [
   { region: 'Miền Bắc', q1: 420000000, q2: 510000000, q3: 480000000, q4: 620000000 },
   { region: 'Miền Trung', q1: 280000000, q2: 320000000, q3: 310000000, q4: 390000000 },
   { region: 'Miền Nam', q1: 560000000, q2: 640000000, q3: 610000000, q4: 780000000 },
 ];
 
-// Sản phẩm bán chạy nhất
-export const topProducts = [
+export const topProducts: TopProduct[] = [
   { rank: 1, name: 'iPhone 16 Pro Max', category: 'Điện tử', sold: 3245, revenue: 324500000 },
   { rank: 2, name: 'Samsung Galaxy S25', category: 'Điện tử', sold: 2890, revenue: 231200000 },
   { rank: 3, name: 'Áo khoác Uniqlo', category: 'Thời trang', sold: 5670, revenue: 170100000 },
@@ -41,8 +98,7 @@ export const topProducts = [
   { rank: 8, name: 'Robot hút bụi Xiaomi', category: 'Gia dụng', sold: 1890, revenue: 94500000 },
 ];
 
-// Xu hướng đơn hàng theo tuần (4 tuần gần nhất mỗi tháng cuối)
-export const orderTrend = [
+export const orderTrend: OrderTrend[] = [
   { week: 'T10-W1', orders: 520, returns: 18 },
   { week: 'T10-W2', orders: 580, returns: 22 },
   { week: 'T10-W3', orders: 610, returns: 15 },
@@ -57,8 +113,7 @@ export const orderTrend = [
   { week: 'T12-W4', orders: 780, returns: 24 },
 ];
 
-// Thống kê tổng quan
-export const summaryStats = {
+export const summaryStats: SummaryStats = {
   totalRevenue: 5302000000,
   totalOrders: 23820,
   newCustomers: 8435,
@@ -69,8 +124,7 @@ export const summaryStats = {
   previousGrowthRate: 18.2,
 };
 
-// Helper format tiền VND
-export const formatCurrency = (value) => {
+export const formatCurrency = (value: number): string => {
   if (value >= 1000000000) {
     return `${(value / 1000000000).toFixed(1)} tỷ`;
   }
@@ -80,12 +134,11 @@ export const formatCurrency = (value) => {
   return new Intl.NumberFormat('vi-VN').format(value);
 };
 
-// Helper format số
-export const formatNumber = (value) => {
+export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('vi-VN').format(value);
 };
 
-export const recentOrders = [
+export const recentOrders: RecentOrder[] = [
   { id: 'ORD-2851', customer: 'Nguyễn Văn An', product: 'iPhone 16 Pro Max', amount: 34990000, date: '25/12/2025', status: 'Hoàn thành' },
   { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'MacBook Air M4', amount: 32990000, date: '25/12/2025', status: 'Đang giao' },
   { id: 'ORD-2849', customer: 'Lê Hoàng Cường', product: 'Samsung Galaxy S25', amount: 27990000, date: '24/12/2025', status: 'Đang xử lý' },

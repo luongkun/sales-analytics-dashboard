@@ -9,6 +9,8 @@ import TopProducts from './components/TopProducts';
 import OrderTrendChart from './components/OrderTrendChart';
 import RecentOrders from './components/RecentOrders';
 import AnimatedSection from './components/AnimatedSection';
+import ErrorBoundary from './components/ErrorBoundary';
+import DashboardCustomizer from './components/DashboardCustomizer';
 import RevenuePage from './pages/RevenuePage';
 import OrdersPage from './pages/OrdersPage';
 import CustomersPage from './pages/CustomersPage';
@@ -23,6 +25,8 @@ import {
   summaryStats,
 } from './data/salesData';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
+import { I18nProvider } from './context/I18nContext';
 
 function OverviewPage() {
   return (
@@ -105,7 +109,7 @@ function OverviewPage() {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState('overview');
+  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports'>('overview');
 
   const renderPage = () => {
     switch (activePage) {
@@ -126,9 +130,16 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Layout activePage={activePage} onNavigate={setActivePage}>
-        {renderPage()}
-      </Layout>
+      <ToastProvider>
+        <I18nProvider>
+          <ErrorBoundary>
+            <Layout activePage={activePage} onNavigate={setActivePage}>
+              {renderPage()}
+              <DashboardCustomizer />
+            </Layout>
+          </ErrorBoundary>
+        </I18nProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

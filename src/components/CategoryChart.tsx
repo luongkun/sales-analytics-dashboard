@@ -5,9 +5,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { formatCurrency } from '../data/salesData';
+import { formatCurrency, CategoryRevenue } from '../data/salesData';
 
-const CustomTooltip = ({ active, payload }) => {
+interface CategoryChartProps {
+  data: CategoryRevenue[];
+}
+
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }> }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
@@ -22,7 +26,15 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 const RADIAN = Math.PI / 180;
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: {
+  cx: number;
+  cy: number;
+  midAngle?: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent?: number;
+}) => {
+  if (midAngle === undefined || percent === undefined) return null;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -42,7 +54,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
   );
 };
 
-export default function CategoryChart({ data }) {
+export default function CategoryChart({ data }: CategoryChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (

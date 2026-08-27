@@ -8,8 +8,13 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { OrderTrend } from '../data/salesData';
 
-const CustomTooltip = ({ active, payload, label }) => {
+interface OrderTrendChartProps {
+  data: OrderTrend[];
+}
+
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
@@ -25,7 +30,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function OrderTrendChart({ data }) {
+export default function OrderTrendChart({ data }: OrderTrendChartProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="mb-6">

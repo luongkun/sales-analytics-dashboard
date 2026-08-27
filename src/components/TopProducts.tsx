@@ -1,14 +1,18 @@
-import { formatCurrency, formatNumber } from '../data/salesData';
-import { Trophy, Medal } from 'lucide-react';
+import { formatCurrency, formatNumber, TopProduct } from '../data/salesData';
+import { Trophy } from 'lucide-react';
 
-const categoryColors = {
+const categoryColors: Record<string, string> = {
   'Điện tử': 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
   'Thời trang': 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
   'Thực phẩm': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
   'Gia dụng': 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
 };
 
-export default function TopProducts({ data }) {
+interface TopProductsProps {
+  data: TopProduct[];
+}
+
+export default function TopProducts({ data }: TopProductsProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">

@@ -1,11 +1,23 @@
-import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import { ShoppingBag, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { orderTrend } from '../data/salesData';
+import { orderTrend, OrderStatusData } from '../data/salesData';
 import RecentOrders from '../components/RecentOrders';
+import { recentOrders } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
 
-const orderStatusData = [
+const orderStatusData: OrderStatusData[] = [
   { name: 'Hoàn thành', value: 18456, color: '#10b981' },
   { name: 'Đang xử lý', value: 3210, color: '#f59e0b' },
   { name: 'Đã hủy', value: 2154, color: '#ef4444' },
@@ -31,7 +43,7 @@ const OrdersPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.3} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
@@ -43,7 +55,7 @@ const OrdersPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.4} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
@@ -55,7 +67,7 @@ const OrdersPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.5} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
@@ -78,8 +90,8 @@ const OrdersPage = () => {
               <AreaChart data={orderTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
@@ -121,7 +133,7 @@ const OrdersPage = () => {
       </div>
 
       <AnimatedSection delay={0.8}>
-        <RecentOrders />
+        <RecentOrders data={recentOrders} />
       </AnimatedSection>
     </div>
   );

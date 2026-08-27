@@ -1,22 +1,43 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import { Target, Filter, DollarSign, RotateCcw, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { formatCurrency } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
 
-const comparisonData = [
+interface ComparisonData {
+  quarter: string;
+  thisYear: number;
+  lastYear: number;
+}
+
+interface Report {
+  id: number;
+  name: string;
+  desc: string;
+  type: 'pdf' | 'excel';
+}
+
+const comparisonData: ComparisonData[] = [
   { quarter: 'Q1', thisYear: 844000000, lastYear: 680000000 },
   { quarter: 'Q2', thisYear: 1179000000, lastYear: 920000000 },
   { quarter: 'Q3', thisYear: 1424000000, lastYear: 1150000000 },
-  { quarter: 'Q4', thisYear: 1855000000, lastYear: 1543000000 }
+  { quarter: 'Q4', thisYear: 1855000000, lastYear: 1543000000 },
 ];
 
-const reportsList = [
+const reportsList: Report[] = [
   { id: 1, name: 'Báo cáo doanh thu tổng hợp 2025', desc: 'Chi tiết doanh thu theo tháng, quý và khu vực', type: 'pdf' },
   { id: 2, name: 'Chi tiết giao dịch khách hàng', desc: 'Danh sách toàn bộ đơn hàng trong năm kèm thông tin khách hàng', type: 'excel' },
   { id: 3, name: 'Phân tích hiệu suất sản phẩm', desc: 'Đánh giá doanh số, lợi nhuận và tốc độ bán của từng SKU', type: 'pdf' },
   { id: 4, name: 'Báo cáo hoàn trả và hủy đơn', desc: 'Thống kê lý do hoàn trả và tỷ lệ hủy theo tháng', type: 'excel' },
-  { id: 5, name: 'Dự phóng doanh thu Q1/2026', desc: 'Mô hình dự báo doanh thu dựa trên dữ liệu lịch sử', type: 'pdf' }
+  { id: 5, name: 'Dự phóng doanh thu Q1/2026', desc: 'Mô hình dự báo doanh thu dựa trên dữ liệu lịch sử', type: 'pdf' },
 ];
 
 const ReportsPage = () => {
@@ -49,7 +70,7 @@ const ReportsPage = () => {
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 text-right">5.3 / 6.0 tỷ</p>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.3} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
@@ -61,7 +82,7 @@ const ReportsPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.4} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
@@ -96,10 +117,10 @@ const ReportsPage = () => {
               <BarChart data={comparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                 <XAxis dataKey="quarter" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" tickFormatter={(val) => formatCurrency(val)} />
-                <Tooltip 
+                <YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => formatCurrency(value)}
+                  formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
                 <Bar dataKey="thisYear" name="Năm nay" fill="#3b82f6" radius={[4, 4, 0, 0]} />

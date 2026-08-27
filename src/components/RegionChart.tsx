@@ -8,9 +8,13 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { formatCurrency } from '../data/salesData';
+import { formatCurrency, RegionRevenue } from '../data/salesData';
 
-const CustomTooltip = ({ active, payload, label }) => {
+interface RegionChartProps {
+  data: RegionRevenue[];
+}
+
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
@@ -26,7 +30,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function RegionChart({ data }) {
+export default function RegionChart({ data }: RegionChartProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="mb-6">

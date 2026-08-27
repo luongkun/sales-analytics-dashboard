@@ -1,17 +1,41 @@
-import React from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import { Users, UserPlus, Heart } from 'lucide-react';
 import { monthlyRevenue, formatCurrency, formatNumber } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
 
-const acquisitionSource = [
+interface AcquisitionSource {
+  source: string;
+  value: number;
+}
+
+interface TopCustomer {
+  rank: number;
+  name: string;
+  email: string;
+  totalSpent: number;
+  orders: number;
+  memberSince: string;
+}
+
+const acquisitionSource: AcquisitionSource[] = [
   { source: 'Website', value: 3200 },
   { source: 'Mobile App', value: 2800 },
   { source: 'Social Media', value: 1500 },
-  { source: 'Giới thiệu', value: 935 }
+  { source: 'Giới thiệu', value: 935 },
 ];
 
-const topCustomers = [
+const topCustomers: TopCustomer[] = [
   { rank: 1, name: 'Nguyễn Văn A', email: 'nguyenvana@email.com', totalSpent: 125000000, orders: 32, memberSince: '2022' },
   { rank: 2, name: 'Trần Thị B', email: 'tranthib@email.com', totalSpent: 98500000, orders: 28, memberSince: '2023' },
   { rank: 3, name: 'Lê Hoàng C', email: 'lehoangc@email.com', totalSpent: 87200000, orders: 45, memberSince: '2021' },
@@ -19,7 +43,7 @@ const topCustomers = [
   { rank: 5, name: 'Hoàng Thị E', email: 'hoangthie@email.com', totalSpent: 65900000, orders: 24, memberSince: '2023' },
   { rank: 6, name: 'Vũ Đức F', email: 'vuducf@email.com', totalSpent: 54300000, orders: 15, memberSince: '2024' },
   { rank: 7, name: 'Đỗ Thị G', email: 'dothig@email.com', totalSpent: 43800000, orders: 12, memberSince: '2025' },
-  { rank: 8, name: 'Bùi Thanh H', email: 'buithanhh@email.com', totalSpent: 38500000, orders: 10, memberSince: '2025' }
+  { rank: 8, name: 'Bùi Thanh H', email: 'buithanhh@email.com', totalSpent: 38500000, orders: 10, memberSince: '2025' },
 ];
 
 const CustomersPage = () => {
@@ -42,7 +66,7 @@ const CustomersPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.3} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
@@ -54,7 +78,7 @@ const CustomersPage = () => {
             </div>
           </div>
         </AnimatedSection>
-        
+
         <AnimatedSection delay={0.4} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-lg">
@@ -78,9 +102,9 @@ const CustomersPage = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                 <XAxis dataKey="month" stroke="#9ca3af" />
                 <YAxis stroke="#9ca3af" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => [formatNumber(value), 'Khách hàng']}
+                  formatter={(value) => [formatNumber(value as number), 'Khách hàng']}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="customers" name="Số lượng" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
@@ -98,9 +122,9 @@ const CustomersPage = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
                 <XAxis type="number" stroke="#9ca3af" />
                 <YAxis dataKey="source" type="category" stroke="#9ca3af" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => [formatNumber(value), 'Khách hàng']}
+                  formatter={(value) => [formatNumber(value as number), 'Khách hàng']}
                 />
                 <Bar dataKey="value" name="Khách hàng" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
