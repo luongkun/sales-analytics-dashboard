@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Calendar, X } from 'lucide-react';
 import { DayPicker, DateRange } from 'react-day-picker';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -14,11 +14,15 @@ export function DateRangePicker({ onChange, initialRange, placeholder = 'Chọn 
   const [open, setOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(initialRange);
 
-  useEffect(() => {
+  // Đồng bộ khi prop initialRange thay đổi, xử lý ngay trong render
+  // thay vì dùng useEffect (tránh cascading renders).
+  const [prevInitialRange, setPrevInitialRange] = useState(initialRange);
+  if (initialRange !== prevInitialRange) {
+    setPrevInitialRange(initialRange);
     if (initialRange) {
       setSelectedRange(initialRange);
     }
-  }, [initialRange]);
+  }
 
   const handleSelect = (range: DateRange | undefined) => {
     setSelectedRange(range);

@@ -146,7 +146,19 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={chartData as any} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <AreaChart
+          data={chartData as MonthlyRevenue[]}
+          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+          onClick={
+            drilledMonth
+              ? undefined
+              : (state: { activeLabel?: string | number }) => {
+                  if (state?.activeLabel != null) {
+                    handleClick(String(state.activeLabel));
+                  }
+                }
+          }
+        >
           <defs>
             <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
@@ -167,14 +179,14 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
             tickFormatter={(value) => `${(value / 1000000).toFixed(0)}tr`}
           />
           <Tooltip
-            content={({ active, payload, label }: any) => {
+            content={({ active, payload, label }) => {
               if (active && payload && payload.length) {
-                const item = payload[0].payload;
+                const item = payload[0].payload as Partial<DailyRevenue>;
                 return (
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
                     <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{drilledMonth ? 'Ngày' : 'Tháng'} {label}</p>
                     <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
-                      Doanh thu: {formatCurrency(payload[0].value)}
+                      Doanh thu: {formatCurrency(Number(payload[0].value))}
                     </p>
                     {item.orders !== undefined && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -200,10 +212,6 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
               stroke: '#fff',
             }}
             activeDot={{ r: drilledMonth ? 4 : 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-            onClick={drilledMonth ? undefined : ((e: any, payload: any) => {
-              e.stopPropagation();
-              handleClick(payload.payload.month);
-            }) as any}
           />
         </AreaChart>
       </ResponsiveContainer>
