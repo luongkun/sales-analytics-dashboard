@@ -11,6 +11,8 @@ import {
   Rocket,
   ShieldCheck,
   Headset,
+  Bot,
+  ScrollText,
   Sun,
   Moon,
   LogOut,
@@ -75,6 +77,8 @@ const PAGE_ICONS: Record<string, LucideIcon> = {
   upgrades: Rocket,
   admin: ShieldCheck,
   support: Headset,
+  aichat: Bot,
+  policy: ScrollText,
 };
 
 const MAX_PER_GROUP = 5;
@@ -112,7 +116,7 @@ export default function CommandPalette({
       icon: PAGE_ICONS[p.id] || LayoutDashboard,
       iconClass: 'text-blue-500',
       title: p.label,
-      keywords: normalize(`${p.label} ${p.id} page ${p.id === 'admin' ? 'quan tri user' : ''} ${p.id === 'support' ? 'ho tro lien he contact cong cu tool' : ''}`),
+      keywords: normalize(`${p.label} ${p.id} page ${p.id === 'admin' ? 'quan tri user' : ''} ${p.id === 'support' ? 'ho tro lien he contact' : ''} ${p.id === 'aichat' ? 'chatbot lumi ai tro ly chat' : ''} ${p.id === 'policy' ? 'chinh sach dieu khoan policy terms' : ''}`),
       onSelect: () => onNavigate(p.id),
     }));
 

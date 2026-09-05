@@ -26,6 +26,8 @@ import ProfilePage from './pages/ProfilePage';
 import TopUpPage from './pages/TopUpPage';
 import AdminPage from './pages/AdminPage';
 import SupportPage from './pages/SupportPage';
+import AiChatPage from './pages/AiChatPage';
+import PolicyPage from './pages/PolicyPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -174,7 +176,7 @@ function App() {
 
 function AppShell() {
   const { user, loading } = useAuth();
-  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support'>('overview');
+  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support' | 'aichat' | 'policy'>('overview');
 
   const renderPage = () => {
     switch (activePage) {
@@ -209,6 +211,10 @@ function AppShell() {
         return <AdminPage />;
       case 'support':
         return <SupportPage />;
+      case 'aichat':
+        return <AiChatPage />;
+      case 'policy':
+        return <PolicyPage />;
       default:
         return <OverviewPage />;
     }

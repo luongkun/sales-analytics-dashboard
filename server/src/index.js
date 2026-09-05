@@ -719,5 +719,95 @@ app.delete('/api/admin/users/:email', auth, async (req, res) => {
 // ----- Health -----
 app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }));
 
+// ============================================================
+//  CHATBOT AI — trợ lý shop (z-ai-web-dev-sdk, backend only)
+// ============================================================
+import ZAI from 'z-ai-web-dev-sdk';
+
+let zaiInstance = null;
+async function getZAI() {
+  if (!zaiInstance) zaiInstance = await ZAI.create();
+  return zaiInstance;
+}
+
+// System prompt: trợ lý của shop bán tài khoản/sản phẩm số
+const CHAT_SYSTEM_PROMPT = `Bạn là trợ lý AI "Lumi" của shop Sales Suite Pro — nền tảng bán tài khoản & sản phẩm số (Netflix, Spotify, game, phần mềm...).
+
+QUY TẮC TRẢ LỜI:
+- Tiếng Việt, thân thiện, ngắn gọn (2-5 câu). Dùng emoji vừa phải.
+- KHÔNG bịa giá sản phẩm, số dư hay mã giảm giá cụ thể — chỉ nói chung chung và hướng khách xem trang "Sản phẩm".
+- Không yêu cầu/hỏi mật khẩu, mã OTP của khách. Không hứa hoàn tiền ngoài chính sách.
+
+KIẾN THỨC SHOP:
+1. TRẠNG THÁI ĐƠN HÀNG (quan trọng):
+   - "Đang xử lý" = shop CHƯA gửi thông tin tài khoản/sản phẩm cho khách. Đơn mới đặt luôn ở trạng thái này.
+   - "Hoàn thành" = shop ĐÃ gửi đầy đủ thông tin (khách xem trong trang "Đơn hàng đã mua").
+   - "Đã hủy" = đơn bị hủy.
+   - Khách đặt hàng → dùng số dư thanh toán → đợi shop xử lý (thường nhanh trong giờ làm việc 8:00-22:00).
+2. NẠP SỐ DƯ: vào trang "Nạp số dư" (chuyển khoản/banking). Nạp nhiều lên hạng VIP, hạng càng cao được bonus % giá trị nạp càng lớn. VIP1 Đồng → VIP2 Bạc → VIP3 Vàng → VIP4 Bạch Kim → VIP5 Kim Cương.
+3. BẢO HÀNH: sản phẩm không đúng mô tả → hoàn tiền 100% về số dư trong 24h kể từ lúc báo lỗi kèm hình ảnh.
+4. LIÊN HỆ NGƯỜI THẬT: các vấn đề cần can thiệp (đơn treo lâu, nạp chưa cộng, đổi trả) → vào "Công cụ" → "Hỗ trợ" lấy thông tin liên hệ hotline/Zalo/Telegram, gửi kèm mã đơn (dạng ORD-XXXXXX).
+5. HỒ SƠ: đổi tên/avatar/ngôn ngữ tại "Tùy chỉnh hồ sơ" (menu avatar). Dark mode ở nút mặt trăng/mặt trời.`;
+
+// Quản lý hội thoại: key = "email:sessionId" → mảng message
+const chatSessions = new Map();
+const CHAT_MAX_TURNS = 20; // giữ 20 tin gần nhất + system prompt
+
+// Rate limit nhẹ: 25 tin / 5 phút / user
+const chatRate = new Map(); // email -> { count, resetAt }
+function chatRateOk(email) {
+  const now = Date.now();
+  let rec = chatRate.get(email);
+  if (!rec || rec.resetAt < now) {
+    rec = { count: 0, resetAt: now + 5 * 60 * 1000 };
+    chatRate.set(email, rec);
+  }
+  rec.count += 1;
+  return rec.count <= 25;
+}
+
+app.post('/api/chat', auth, async (req, res) => {
+  try {
+    const { message } = req.body || {};
+    const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.slice(0, 64) : 'default';
+    const text = typeof message === 'string' ? message.trim() : '';
+    if (!text) return res.status(400).json({ error: 'Tin nhắn trống' });
+    if (text.length > 1000) return res.status(400).json({ error: 'Tin nhắn quá dài (tối đa 1000 ký tự)' });
+    if (!chatRateOk(req.user.email)) {
+      return res.status(429).json({ error: 'Bạn nhắn hơi nhanh — chờ chút rồi thử lại nhé' });
+    }
+
+    const key = `${req.user.email}:${sessionId}`;
+    let history = chatSessions.get(key) || [];
+    history.push({ role: 'user', content: text });
+
+    // Trim: giữ system prompt + 20 tin gần nhất
+    const trimmed = history.slice(-CHAT_MAX_TURNS);
+
+    const zai = await getZAI();
+    const completion = await zai.chat.completions.create({
+      messages: [{ role: 'assistant', content: CHAT_SYSTEM_PROMPT }, ...trimmed],
+      thinking: { type: 'disabled' },
+    });
+    const aiResponse = completion.choices[0]?.message?.content;
+    if (!aiResponse || !aiResponse.trim()) throw new Error('Phản hồi trống từ AI');
+
+    history.push({ role: 'assistant', content: aiResponse });
+    chatSessions.set(key, history);
+
+    res.json({ success: true, response: aiResponse, messageCount: history.length });
+  } catch (err) {
+    console.error('[chat] Lỗi:', err.message);
+    res.status(500).json({ error: 'Trợ lý AI đang bận, thử lại sau ít phút nhé' });
+  }
+});
+
+// Xóa hội thoại (cuộc trò chuyện mới)
+app.delete('/api/chat/:sessionId', auth, (req, res) => {
+  const key = `${req.user.email}:${String(req.params.sessionId).slice(0, 64)}`;
+  chatSessions.delete(key);
+  res.json({ success: true });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`API server running at http://localhost:${PORT}`));

@@ -341,9 +341,11 @@ const pageTitles: Record<string, string> = {
   topup: 'Nạp số dư',
   admin: 'Quản trị người dùng',
   support: 'Hỗ trợ & Liên hệ',
+  aichat: 'Trợ lý AI Lumi',
+  policy: 'Chính sách & Điều khoản',
 };
 
-type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support';
+type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support' | 'aichat' | 'policy';
 
 interface NavItem {
   id: PageId;

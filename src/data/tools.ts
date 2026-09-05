@@ -1,4 +1,4 @@
-import { Headset, type LucideIcon } from 'lucide-react';
+import { Headset, Bot, ScrollText, type LucideIcon } from 'lucide-react';
 
 /**
  * Một công cụ trong nhóm "Công cụ" ở cột bên trái (sidebar).
@@ -32,5 +32,20 @@ export const TOOLS: ToolItem[] = [
     icon: Headset,
     badge: 'Mới',
     pageId: 'support',
+  },
+  {
+    id: 'chatbot',
+    name: 'Chatbot AI',
+    description: 'Trợ lý AI Lumi trả lời 24/7',
+    icon: Bot,
+    badge: 'AI',
+    pageId: 'aichat',
+  },
+  {
+    id: 'policy',
+    name: 'Chính sách & Điều khoản',
+    description: 'Điều khoản mua hàng, bảo hành, hoàn tiền',
+    icon: ScrollText,
+    pageId: 'policy',
   },
 ];
