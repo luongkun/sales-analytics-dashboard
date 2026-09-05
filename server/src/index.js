@@ -557,20 +557,50 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
     return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
   }
   const { email } = req.params;
-  const { balance, role } = req.body;
+  const { balance, balanceAdjust, role } = req.body;
   const target = getUser(email);
   if (!target) return res.status(404).json({ error: 'Người dùng không tồn tại' });
-  if (email === 'admin@luongkun.io' && role !== 'admin') {
+  if (email === 'admin@luongkun.io' && role !== undefined && role !== 'admin') {
     return res.status(400).json({ error: 'Không thể hạ cấp tài khoản admin chính' });
   }
   const updates = {};
-  if (typeof balance === 'number' && balance >= 0) updates.balance = Math.round(balance);
+  let adjustDelta = null;
+  if (typeof balanceAdjust === 'number' && Number.isFinite(balanceAdjust) && Math.round(balanceAdjust) !== 0) {
+    // Điều chỉnh tăng/giảm (cộng dồn vào số dư hiện tại) — không phải set tuyệt đối
+    adjustDelta = Math.round(balanceAdjust);
+    const newBalance = target.balance + adjustDelta;
+    if (newBalance < 0) {
+      return res.status(400).json({ error: `Không thể trừ ${formatVnd(-adjustDelta)} — số dư hiện tại chỉ ${formatVnd(target.balance)}` });
+    }
+    updates.balance = newBalance;
+  } else if (typeof balance === 'number' && balance >= 0) {
+    updates.balance = Math.round(balance);
+  }
   if (role && (role === 'admin' || role === 'member')) updates.role = role;
   if (Object.keys(updates).length) updateUser(email, updates);
+  // Lịch sử điều chỉnh thủ công (không tính vào totalTopup/VIP)
+  if (adjustDelta !== null) {
+    createTransaction({
+      id: `tx_admin_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      email,
+      type: 'admin_adjust',
+      amount: adjustDelta,
+      bonus: 0,
+      timestamp: Date.now(),
+    });
+  }
   const updated = getUser(email);
   broadcastUserUpdated(email, publicUser(updated), 'admin-edit', req.user.email);
-  res.json({ ok: true, user: publicUser(updated) });
+  res.json({
+    ok: true,
+    user: publicUser(updated),
+    ...(adjustDelta !== null ? { adjust: { delta: adjustDelta, newBalance: updated.balance } } : {}),
+  });
 });
+
+function formatVnd(n) {
+  return `${n.toLocaleString('vi-VN')}đ`;
+}
 
 app.delete('/api/admin/users/:email', auth, async (req, res) => {
   const admin = getUser(req.user.email);
