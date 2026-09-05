@@ -59,20 +59,67 @@ export interface OrderStatusData {
   color: string;
 }
 
-export const monthlyRevenue: MonthlyRevenue[] = [
-  { month: 'T1', revenue: 245000000, orders: 1230, customers: 456 },
-  { month: 'T2', revenue: 312000000, orders: 1450, customers: 523 },
-  { month: 'T3', revenue: 287000000, orders: 1380, customers: 498 },
-  { month: 'T4', revenue: 356000000, orders: 1620, customers: 587 },
-  { month: 'T5', revenue: 398000000, orders: 1780, customers: 634 },
-  { month: 'T6', revenue: 425000000, orders: 1890, customers: 672 },
-  { month: 'T7', revenue: 467000000, orders: 2050, customers: 723 },
-  { month: 'T8', revenue: 445000000, orders: 1950, customers: 698 },
-  { month: 'T9', revenue: 512000000, orders: 2230, customers: 789 },
-  { month: 'T10', revenue: 534000000, orders: 2340, customers: 823 },
-  { month: 'T11', revenue: 623000000, orders: 2780, customers: 945 },
-  { month: 'T12', revenue: 698000000, orders: 3120, customers: 1087 },
+// ============================================================
+// Helpers đồng bộ thời gian hiện tại
+// (dữ liệu luôn khớp tháng/tuần/ngày tại thời điểm mở app)
+// ============================================================
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** Ngày dạng 'DD/MM/YYYY' của hôm nay lùi n ngày */
+const daysAgo = (n: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+};
+
+/** 12 nhãn tháng kết thúc ở THÁNG HIỆN TẠI, vd giờ là 9/2026 → ['T10/2025', …, 'T9/2026'] */
+const last12MonthLabels = (): string[] => {
+  const now = new Date();
+  const labels: string[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(`T${d.getMonth() + 1}/${d.getFullYear()}`);
+  }
+  return labels;
+};
+
+/** 12 nhãn tuần kết thúc ở TUẦN HIỆN TẠI, vd ['T7-W3', …, 'T9-W2'] */
+const last12WeekLabels = (): string[] => {
+  const now = new Date();
+  const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  anchor.setDate(anchor.getDate() + (6 - anchor.getDay())); // mốc: thứ Bảy của tuần này
+  const labels: string[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(anchor);
+    d.setDate(d.getDate() - 7 * i);
+    const weekOfMonth = Math.ceil(d.getDate() / 7);
+    labels.push(`T${d.getMonth() + 1}-W${weekOfMonth}`);
+  }
+  return labels;
+};
+
+const monthLabels = last12MonthLabels();
+
+const monthlyValues: Array<Omit<MonthlyRevenue, 'month'>> = [
+  { revenue: 245000000, orders: 1230, customers: 456 },
+  { revenue: 312000000, orders: 1450, customers: 523 },
+  { revenue: 287000000, orders: 1380, customers: 498 },
+  { revenue: 356000000, orders: 1620, customers: 587 },
+  { revenue: 398000000, orders: 1780, customers: 634 },
+  { revenue: 425000000, orders: 1890, customers: 672 },
+  { revenue: 467000000, orders: 2050, customers: 723 },
+  { revenue: 445000000, orders: 1950, customers: 698 },
+  { revenue: 512000000, orders: 2230, customers: 789 },
+  { revenue: 534000000, orders: 2340, customers: 823 },
+  { revenue: 623000000, orders: 2780, customers: 945 },
+  { revenue: 698000000, orders: 3120, customers: 1087 },
 ];
+
+export const monthlyRevenue: MonthlyRevenue[] = monthlyValues.map((v, i) => ({
+  month: monthLabels[i],
+  ...v,
+}));
 
 export const categoryRevenue: CategoryRevenue[] = [
   { name: 'Điện tử', value: 2150000000, color: '#3b82f6' },
@@ -98,20 +145,27 @@ export const topProducts: TopProduct[] = [
   { rank: 8, name: 'Robot hút bụi Xiaomi', category: 'Gia dụng', sold: 1890, revenue: 94500000 },
 ];
 
-export const orderTrend: OrderTrend[] = [
-  { week: 'T10-W1', orders: 520, returns: 18 },
-  { week: 'T10-W2', orders: 580, returns: 22 },
-  { week: 'T10-W3', orders: 610, returns: 15 },
-  { week: 'T10-W4', orders: 630, returns: 20 },
-  { week: 'T11-W1', orders: 650, returns: 25 },
-  { week: 'T11-W2', orders: 690, returns: 19 },
-  { week: 'T11-W3', orders: 720, returns: 28 },
-  { week: 'T11-W4', orders: 720, returns: 23 },
-  { week: 'T12-W1', orders: 750, returns: 30 },
-  { week: 'T12-W2', orders: 780, returns: 26 },
-  { week: 'T12-W3', orders: 810, returns: 32 },
-  { week: 'T12-W4', orders: 780, returns: 24 },
+const weekLabels = last12WeekLabels();
+
+const orderTrendValues: Array<Omit<OrderTrend, 'week'>> = [
+  { orders: 520, returns: 18 },
+  { orders: 580, returns: 22 },
+  { orders: 610, returns: 15 },
+  { orders: 630, returns: 20 },
+  { orders: 650, returns: 25 },
+  { orders: 690, returns: 19 },
+  { orders: 720, returns: 28 },
+  { orders: 720, returns: 23 },
+  { orders: 750, returns: 30 },
+  { orders: 780, returns: 26 },
+  { orders: 810, returns: 32 },
+  { orders: 780, returns: 24 },
 ];
+
+export const orderTrend: OrderTrend[] = orderTrendValues.map((v, i) => ({
+  week: weekLabels[i],
+  ...v,
+}));
 
 export const summaryStats: SummaryStats = {
   totalRevenue: 5302000000,
@@ -139,14 +193,14 @@ export const formatNumber = (value: number): string => {
 };
 
 export const recentOrders: RecentOrder[] = [
-  { id: 'ORD-2851', customer: 'Nguyễn Văn An', product: 'iPhone 16 Pro Max', amount: 34990000, date: '25/12/2025', status: 'Hoàn thành' },
-  { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'MacBook Air M4', amount: 32990000, date: '25/12/2025', status: 'Đang giao' },
-  { id: 'ORD-2849', customer: 'Lê Hoàng Cường', product: 'Samsung Galaxy S25', amount: 27990000, date: '24/12/2025', status: 'Đang xử lý' },
-  { id: 'ORD-2848', customer: 'Phạm Minh Duy', product: 'Áo khoác Uniqlo', amount: 1290000, date: '24/12/2025', status: 'Hoàn thành' },
-  { id: 'ORD-2847', customer: 'Hoàng Thị Em', product: 'Nồi chiên không dầu', amount: 2590000, date: '24/12/2025', status: 'Hoàn thành' },
-  { id: 'ORD-2846', customer: 'Vũ Đức Phong', product: 'Robot hút bụi Xiaomi', amount: 7990000, date: '23/12/2025', status: 'Đã hủy' },
-  { id: 'ORD-2845', customer: 'Đỗ Thị Giang', product: 'Giày Nike Air Max', amount: 3890000, date: '23/12/2025', status: 'Đang giao' },
-  { id: 'ORD-2844', customer: 'Bùi Thanh Hải', product: 'Combo thực phẩm sạch', amount: 890000, date: '23/12/2025', status: 'Hoàn thành' },
-  { id: 'ORD-2843', customer: 'Ngô Thị Hương', product: 'iPhone 16 Pro Max', amount: 34990000, date: '22/12/2025', status: 'Hoàn thành' },
-  { id: 'ORD-2842', customer: 'Mai Văn Khoa', product: 'Samsung Galaxy S25', amount: 27990000, date: '22/12/2025', status: 'Đang xử lý' },
+  { id: 'ORD-2851', customer: 'Nguyễn Văn An', product: 'iPhone 16 Pro Max', amount: 34990000, date: daysAgo(0), status: 'Hoàn thành' },
+  { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'MacBook Air M4', amount: 32990000, date: daysAgo(0), status: 'Đang giao' },
+  { id: 'ORD-2849', customer: 'Lê Hoàng Cường', product: 'Samsung Galaxy S25', amount: 27990000, date: daysAgo(1), status: 'Đang xử lý' },
+  { id: 'ORD-2848', customer: 'Phạm Minh Duy', product: 'Áo khoác Uniqlo', amount: 1290000, date: daysAgo(1), status: 'Hoàn thành' },
+  { id: 'ORD-2847', customer: 'Hoàng Thị Em', product: 'Nồi chiên không dầu', amount: 2590000, date: daysAgo(1), status: 'Hoàn thành' },
+  { id: 'ORD-2846', customer: 'Vũ Đức Phong', product: 'Robot hút bụi Xiaomi', amount: 7990000, date: daysAgo(2), status: 'Đã hủy' },
+  { id: 'ORD-2845', customer: 'Đỗ Thị Giang', product: 'Giày Nike Air Max', amount: 3890000, date: daysAgo(2), status: 'Đang giao' },
+  { id: 'ORD-2844', customer: 'Bùi Thanh Hải', product: 'Combo thực phẩm sạch', amount: 890000, date: daysAgo(2), status: 'Hoàn thành' },
+  { id: 'ORD-2843', customer: 'Ngô Thị Hương', product: 'iPhone 16 Pro Max', amount: 34990000, date: daysAgo(3), status: 'Hoàn thành' },
+  { id: 'ORD-2842', customer: 'Mai Văn Khoa', product: 'Samsung Galaxy S25', amount: 27990000, date: daysAgo(3), status: 'Đang xử lý' },
 ];

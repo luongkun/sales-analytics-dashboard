@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { useState } from 'react';
 import { formatCurrency, MonthlyRevenue } from '../data/salesData';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 
 interface DailyRevenue {
   day: string;
@@ -20,93 +20,35 @@ interface DailyRevenue {
 
 interface RevenueChartProps {
   data: MonthlyRevenue[];
+  fetchDaily?: (month: string) => Promise<DailyRevenue[]>;
   onDrillDown?: (month: string, dailyData: DailyRevenue[]) => void;
 }
 
-const dailyDataMap: Record<string, DailyRevenue[]> = {
-  T1: Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 5000000) + 8000000,
-    orders: Math.floor(Math.random() * 30) + 40,
-    customers: Math.floor(Math.random() * 15) + 15,
-  })),
-  T2: Array.from({ length: 28 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 6000000) + 10000000,
-    orders: Math.floor(Math.random() * 40) + 50,
-    customers: Math.floor(Math.random() * 20) + 18,
-  })),
-  T3: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 5500000) + 9000000,
-    orders: Math.floor(Math.random() * 35) + 45,
-    customers: Math.floor(Math.random() * 18) + 16,
-  })),
-  T4: Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 7000000) + 11000000,
-    orders: Math.floor(Math.random() * 45) + 55,
-    customers: Math.floor(Math.random() * 22) + 19,
-  })),
-  T5: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 8000000) + 12000000,
-    orders: Math.floor(Math.random() * 50) + 60,
-    customers: Math.floor(Math.random() * 25) + 20,
-  })),
-  T6: Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 8500000) + 13000000,
-    orders: Math.floor(Math.random() * 55) + 63,
-    customers: Math.floor(Math.random() * 26) + 22,
-  })),
-  T7: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 9000000) + 14000000,
-    orders: Math.floor(Math.random() * 60) + 66,
-    customers: Math.floor(Math.random() * 28) + 23,
-  })),
-  T8: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 8500000) + 13500000,
-    orders: Math.floor(Math.random() * 58) + 63,
-    customers: Math.floor(Math.random() * 27) + 22,
-  })),
-  T9: Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 10000000) + 16000000,
-    orders: Math.floor(Math.random() * 70) + 74,
-    customers: Math.floor(Math.random() * 30) + 26,
-  })),
-  T10: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 11000000) + 17000000,
-    orders: Math.floor(Math.random() * 75) + 75,
-    customers: Math.floor(Math.random() * 32) + 26,
-  })),
-  T11: Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 12000000) + 20000000,
-    orders: Math.floor(Math.random() * 85) + 92,
-    customers: Math.floor(Math.random() * 35) + 31,
-  })),
-  T12: Array.from({ length: 31 }, (_, i) => ({
-    day: `${i + 1}`,
-    revenue: Math.floor(Math.random() * 15000000) + 22000000,
-    orders: Math.floor(Math.random() * 100) + 100,
-    customers: Math.floor(Math.random() * 40) + 35,
-  })),
-};
-
-export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
+export default function RevenueChart({ data, fetchDaily, onDrillDown }: RevenueChartProps) {
   const [drilledMonth, setDrilledMonth] = useState<string | null>(null);
   const [dailyData, setDailyData] = useState<DailyRevenue[] | null>(null);
+  const [loadingDaily, setLoadingDaily] = useState(false);
 
-  const handleClick = (month: string) => {
-    const monthData = dailyDataMap[month] || [];
+  // Nhãn tháng đầy đủ, vd 'T9/2026' → 'Tháng 9/2026'
+  const prettyMonth = (label: string): string => label.replace(/^T/, 'Tháng ');
+
+  const handleClick = async (month: string) => {
     setDrilledMonth(month);
-    setDailyData(monthData);
-    onDrillDown?.(month, monthData);
+    setDailyData(null);
+    if (!fetchDaily) {
+      onDrillDown?.(month, []);
+      return;
+    }
+    setLoadingDaily(true);
+    try {
+      const rows = await fetchDaily(month);
+      setDailyData(rows);
+      onDrillDown?.(month, rows);
+    } catch {
+      setDailyData([]);
+    } finally {
+      setLoadingDaily(false);
+    }
   };
 
   const handleBack = () => {
@@ -114,7 +56,7 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
     setDailyData(null);
   };
 
-  const chartData = drilledMonth ? dailyData! : data;
+  const chartData = drilledMonth ? dailyData ?? [] : data;
   const dataKey = drilledMonth ? 'day' : 'month';
 
   return (
@@ -122,12 +64,12 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-base font-bold text-gray-800 dark:text-white">
-            {drilledMonth ? `Doanh thu theo ngày - Tháng ${drilledMonth}` : 'Doanh thu theo tháng'}
+            {drilledMonth ? `Doanh thu theo ngày - ${prettyMonth(drilledMonth)}` : 'Doanh thu theo tháng'}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {drilledMonth
-              ? `Chi tiết doanh thu từng ngày trong tháng ${drilledMonth}`
-              : 'Biểu đồ doanh thu 12 tháng năm 2025 - Click vào tháng để xem chi tiết'}
+              ? `Chi tiết doanh thu từng ngày trong ${prettyMonth(drilledMonth)}`
+              : `Biểu đồ doanh thu 12 tháng (${data[0]?.month ?? ''} – ${data[data.length - 1]?.month ?? ''}) - Click vào tháng để xem chi tiết`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -139,6 +81,12 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
               <ChevronLeft className="w-4 h-4" />
               Quay lại tháng
             </button>
+          )}
+          {loadingDaily && (
+            <span className="flex items-center gap-1.5 text-xs text-gray-400" role="status">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Đang tải dữ liệu ngày…
+            </span>
           )}
           <span className="w-3 h-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full shadow-sm shadow-blue-500/50"></span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Doanh thu (VNĐ)</span>
@@ -193,7 +141,7 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
                 const item = payload[0].payload as Partial<DailyRevenue>;
                 return (
                   <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-blue-200/60 dark:border-blue-700/60 rounded-xl shadow-xl shadow-blue-500/10 p-3.5 ring-1 ring-black/5">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{drilledMonth ? 'Ngày' : 'Tháng'} {label}</p>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{drilledMonth ? 'Ngày' : prettyMonth(String(label))}</p>
                     <p className="text-base font-bold text-gradient mt-1">
                       {formatCurrency(Number(payload[0].value))}
                     </p>
@@ -233,9 +181,9 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
       </ResponsiveContainer>
 
       {drilledMonth && dailyData && (
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 bg-white dark:bg-gray-800">
               <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
                 <th className="pb-2 font-medium">Ngày</th>
                 <th className="pb-2 font-medium text-right">Doanh thu</th>
@@ -251,7 +199,7 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
                   <td className="py-2 text-right">{formatCurrency(row.revenue)}</td>
                   <td className="py-2 text-right">{row.orders}</td>
                   <td className="py-2 text-right">{row.customers}</td>
-                  <td className="py-2 text-right">{formatCurrency(Math.round(row.revenue / row.orders))}</td>
+                  <td className="py-2 text-right">{row.orders > 0 ? formatCurrency(Math.round(row.revenue / row.orders)) : '—'}</td>
                 </tr>
               ))}
             </tbody>

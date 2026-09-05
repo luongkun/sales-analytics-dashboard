@@ -14,11 +14,34 @@ import {
   Legend,
 } from 'recharts';
 import { DollarSign, TrendingUp, Calendar } from 'lucide-react';
-import { monthlyRevenue, categoryRevenue, regionRevenue, formatCurrency, formatNumber } from '../data/salesData';
+import { formatCurrency, formatNumber } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
 import { ExportButton } from '../components/ExportButton';
+import { SkeletonStatCard, SkeletonChart, SkeletonTable } from '../components/Skeleton';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 const RevenuePage = () => {
+  const { data, loading } = useAnalytics();
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[0, 1, 2].map((i) => <SkeletonStatCard key={i} />)}
+        </div>
+        <SkeletonChart height={460} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SkeletonChart height={360} />
+          <SkeletonChart height={360} />
+        </div>
+        <SkeletonTable rows={12} columns={5} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+  const { monthlyRevenue, categoryRevenue, regionRevenue, year } = data;
+
   return (
     <div className="space-y-6">
       <AnimatedSection delay={0.1}>
@@ -33,8 +56,8 @@ const RevenuePage = () => {
               <DollarSign size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Tổng doanh thu năm</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">5.3 tỷ</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Doanh thu năm {year.currentYear}</p>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatCurrency(year.yearRevenue)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -46,7 +69,7 @@ const RevenuePage = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Doanh thu trung bình/tháng</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">441.8 triệu</h3>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatCurrency(year.avgPerMonth)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -58,7 +81,7 @@ const RevenuePage = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Tháng cao nhất</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">T12: 698 triệu</h3>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{`${year.bestMonth.label}: ${formatCurrency(year.bestMonth.revenue)}`}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -78,11 +101,11 @@ const RevenuePage = () => {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
               <XAxis dataKey="month" stroke="#9ca3af" />
-<YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
-<Tooltip
-                  contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                  formatter={(value) => formatCurrency(value as number)}
-                />
+              <YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
+                formatter={(value) => formatCurrency(value as number)}
+              />
               <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -109,7 +132,7 @@ const RevenuePage = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-<Tooltip
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
                   formatter={(value) => formatCurrency(value as number)}
                 />
@@ -120,14 +143,14 @@ const RevenuePage = () => {
         </AnimatedSection>
 
         <AnimatedSection delay={0.7} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Doanh thu theo khu vực</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Doanh thu theo khu vực ({year.currentYear})</h2>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={regionRevenue}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-<XAxis dataKey="region" stroke="#9ca3af" />
-<YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
-<Tooltip
+                <XAxis dataKey="region" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" tickFormatter={(val) => val === undefined ? '' : formatCurrency(val as number)} />
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
                   formatter={(value) => formatCurrency(value as number)}
                 />
@@ -157,9 +180,9 @@ const RevenuePage = () => {
             ]}
           />
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
+            <thead className="sticky top-0 bg-white dark:bg-gray-800">
               <tr className="border-b border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
                 <th className="pb-3 font-medium">Tháng</th>
                 <th className="pb-3 font-medium">Doanh thu</th>
@@ -175,7 +198,7 @@ const RevenuePage = () => {
                   <td className="py-3 font-medium">{formatCurrency(row.revenue)}</td>
                   <td className="py-3">{formatNumber(row.orders)}</td>
                   <td className="py-3">{formatNumber(row.customers)}</td>
-                  <td className="py-3">{formatCurrency(row.revenue / row.orders)}</td>
+                  <td className="py-3">{row.orders > 0 ? formatCurrency(row.revenue / row.orders) : '—'}</td>
                 </tr>
               ))}
             </tbody>

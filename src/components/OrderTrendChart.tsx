@@ -51,7 +51,9 @@ export default function OrderTrendChart({ data }: OrderTrendChartProps) {
     <div className="card-lift bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="mb-4">
         <h3 className="text-base font-bold text-gray-800 dark:text-white">Xu hướng đơn hàng</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Đơn hàng và hoàn trả theo tuần (Q4 2025)</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          {`Đơn hàng và hoàn trả theo tuần (12 tuần gần nhất, cập nhật ${data[data.length - 1]?.week ?? ''})`}
+        </p>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>

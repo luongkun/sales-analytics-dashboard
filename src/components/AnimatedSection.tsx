@@ -41,8 +41,12 @@ const AnimatedSection = ({ children, delay = 0, className, style, ...rest }: Ani
       style={{
         ...style,
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(36px) scale(0.97)',
-        filter: isVisible ? 'blur(0)' : 'blur(6px)',
+        // Dùng 'none' thay vì 'translateY(0) scale(1)'/'blur(0)' khi đã hiện:
+        // transform/filter khác none (kể cả identity) sẽ tạo containing block
+        // cho position: fixed con cháu, làm modal/overlay bị lệch vị trí.
+        // 'none' vẫn interpolate mượt như identity theo CSS spec.
+        transform: isVisible ? 'none' : 'translateY(36px) scale(0.97)',
+        filter: isVisible ? 'none' : 'blur(6px)',
         transition: `opacity 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, transform 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, filter 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms`,
       }}
       {...rest}

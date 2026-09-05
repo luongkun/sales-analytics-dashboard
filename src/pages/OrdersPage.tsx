@@ -12,18 +12,36 @@ import {
   Legend,
 } from 'recharts';
 import { ShoppingBag, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { orderTrend, OrderStatusData } from '../data/salesData';
+import { formatNumber } from '../data/salesData';
 import RecentOrders from '../components/RecentOrders';
-import { recentOrders } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
-
-const orderStatusData: OrderStatusData[] = [
-  { name: 'Hoàn thành', value: 18456, color: '#10b981' },
-  { name: 'Đang xử lý', value: 3210, color: '#f59e0b' },
-  { name: 'Đã hủy', value: 2154, color: '#ef4444' },
-];
+import { SkeletonStatCard, SkeletonChart } from '../components/Skeleton';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 const OrdersPage = () => {
+  const { data, loading } = useAnalytics();
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[0, 1, 2, 3].map((i) => <SkeletonStatCard key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <SkeletonChart className="lg:col-span-2" height={340} />
+          <SkeletonChart height={340} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+  const { orderStats, orderStatus, orderTrend, recentOrders } = data;
+  const total = orderStats.total || 1;
+  const completedPct = ((orderStats.completed / total) * 100).toFixed(1);
+  const processingPct = ((orderStats.processing / total) * 100).toFixed(1);
+  const canceledPct = ((orderStats.canceled / total) * 100).toFixed(1);
+
   return (
     <div className="space-y-6">
       <AnimatedSection delay={0.1}>
@@ -39,7 +57,7 @@ const OrdersPage = () => {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Tổng đơn hàng</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">23,820</h3>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatNumber(orderStats.total)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -50,8 +68,8 @@ const OrdersPage = () => {
               <CheckCircle size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Hoàn thành (77.5%)</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">18,456</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Hoàn thành ({completedPct}%)</p>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatNumber(orderStats.completed)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -62,8 +80,8 @@ const OrdersPage = () => {
               <Clock size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Đang xử lý (13.5%)</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">3,210</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Đang xử lý/giao ({processingPct}%)</p>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatNumber(orderStats.processing)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -74,8 +92,8 @@ const OrdersPage = () => {
               <XCircle size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Đã hủy (9%)</p>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">2,154</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Đã hủy ({canceledPct}%)</p>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatNumber(orderStats.canceled)}</h3>
             </div>
           </div>
         </AnimatedSection>
@@ -112,7 +130,7 @@ const OrdersPage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={orderStatusData}
+                  data={orderStatus}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -120,7 +138,7 @@ const OrdersPage = () => {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {orderStatusData.map((entry, index) => (
+                  {orderStatus.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>

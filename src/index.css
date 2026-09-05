@@ -295,7 +295,9 @@ body {
 }
 
 .animate-pop-in {
-  animation: pop-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* 'backwards' thay vì 'both': sau khi animation kết thúc, transform/filter
+     không bị giữ lại — tránh tạo containing block cho position: fixed (fix modal lệch) */
+  animation: pop-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
 @keyframes fade-up {
@@ -312,7 +314,11 @@ body {
 }
 
 .animate-fade-up {
-  animation: fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* 'backwards' thay vì 'both': giữ trạng thái from trong delay, nhưng SAU khi
+     animation xong thì revert về style gốc (không transform/filter) — nếu giữ
+     transform/filter (dù là identity) thì mọi position: fixed con cháu
+     (modal, overlay) sẽ bị neo vào element này thay vì viewport */
+  animation: fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes shake {
@@ -397,13 +403,31 @@ body {
   top: 16px;
 }
 
+/* Focus outline gọn — ôm sát viền, không nổi lơ lửng (offset 0) */
 :focus-visible {
   outline: 2px solid #2563eb;
-  outline-offset: 2px;
+  outline-offset: 0px;
 }
 
 .dark :focus-visible {
   outline-color: #60a5fa;
+}
+
+/* Ô nhập liệu KHÔNG vẽ outline toàn cục — đã có focus ring riêng (focus:ring-2) */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.dark input:focus-visible,
+.dark textarea:focus-visible,
+.dark select:focus-visible {
+  outline: none;
+}
+
+/* Recharts: click vào biểu đồ → <g> trong SVG nhận focus, Chrome vẽ khung đen
+   dày mặc định (outline: auto 5px). Tắt outline mọi phần tử trong chart. */
+.recharts-wrapper svg:focus,
+.recharts-wrapper svg :focus {
+  outline: none;
 }
 
 /* High contrast mode support */

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart3,
   Mail,
@@ -13,6 +13,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { setAppTitle } from '../utils/setTitle';
 
 type Mode = 'login' | 'register';
 
@@ -53,6 +54,14 @@ export default function LoginPage() {
   const [nameTouched, setNameTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [shake, setShake] = useState(false);
+
+  // Tiêu đề tab khi ở trang đăng nhập
+  useEffect(() => {
+    setAppTitle('Đăng nhập · Sales Suite Pro');
+    return () => {
+      setAppTitle('Sales Suite Pro — Dashboard phân tích doanh thu');
+    };
+  }, []);
 
   const fail = (message: string) => {
     setError(message);

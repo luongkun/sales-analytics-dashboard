@@ -52,7 +52,27 @@ const translations: Record<Locale, Record<string, string>> = {
     
     // Dashboard
     'dashboard.title': 'Dashboard Phân tích Doanh thu',
-    'dashboard.updated': 'Dữ liệu cập nhật: Tháng 12, 2025',
+    'dashboard.updated': 'Dữ liệu cập nhật: {month}',
+    'dashboard.updated_short': 'Cập nhật: {month}',
+
+    // Command palette (Ctrl+K)
+    'palette.open_label': 'Tìm kiếm nhanh',
+    'palette.placeholder': 'Tìm trang, đơn hàng, sản phẩm, khách hàng...',
+    'palette.navigation': 'Điều hướng',
+    'palette.orders': 'Đơn hàng',
+    'palette.products': 'Sản phẩm',
+    'palette.customers': 'Khách hàng',
+    'palette.actions': 'Hành động',
+    'palette.no_results': 'Không tìm thấy kết quả cho "{query}"',
+    'palette.action.theme': 'Đổi giao diện sáng/tối',
+    'palette.action.cart': 'Mở giỏ hàng',
+    'palette.action.logout': 'Đăng xuất',
+    'palette.cart_items': '{count} sản phẩm trong giỏ',
+    'palette.slots_left': 'còn {count} suất',
+    'palette.orders_unit': 'đơn',
+    'palette.hint.move': 'di chuyển',
+    'palette.hint.select': 'chọn',
+    'palette.hint.close': 'đóng',
     
     // Stats
     'stats.total_revenue': 'Tổng doanh thu',
@@ -152,7 +172,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'notif.return_rate.title': 'Cảnh báo tỷ lệ hoàn trả',
     'notif.return_rate.message': '{count} đơn hàng bị trả lại ({percent}%) trong tuần này.',
     'notif.monthly_report.title': 'Báo cáo tháng đã sẵn sàng',
-    'notif.monthly_report.message': 'Báo cáo phân tích doanh thu tháng 12 đã được tạo. Xem tại trang Báo cáo.',
+    'notif.monthly_report.message': 'Báo cáo phân tích doanh thu tháng này đã được tạo. Xem tại trang Báo cáo.',
   },
   en: {
     // General
@@ -197,7 +217,27 @@ const translations: Record<Locale, Record<string, string>> = {
     
     // Dashboard
     'dashboard.title': 'Revenue Analytics Dashboard',
-    'dashboard.updated': 'Data updated: December 2025',
+    'dashboard.updated': 'Data updated: {month}',
+    'dashboard.updated_short': 'Updated: {month}',
+
+    // Command palette (Ctrl+K)
+    'palette.open_label': 'Quick search',
+    'palette.placeholder': 'Search pages, orders, products, customers...',
+    'palette.navigation': 'Navigation',
+    'palette.orders': 'Orders',
+    'palette.products': 'Products',
+    'palette.customers': 'Customers',
+    'palette.actions': 'Actions',
+    'palette.no_results': 'No results for "{query}"',
+    'palette.action.theme': 'Toggle light/dark theme',
+    'palette.action.cart': 'Open cart',
+    'palette.action.logout': 'Log out',
+    'palette.cart_items': '{count} items in cart',
+    'palette.slots_left': '{count} slots left',
+    'palette.orders_unit': 'orders',
+    'palette.hint.move': 'navigate',
+    'palette.hint.select': 'select',
+    'palette.hint.close': 'close',
     
     // Stats
     'stats.total_revenue': 'Total Revenue',
@@ -297,7 +337,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'notif.return_rate.title': 'Return rate warning',
     'notif.return_rate.message': '{count} orders returned ({percent}%) this week.',
     'notif.monthly_report.title': 'Monthly report is ready',
-    'notif.monthly_report.message': 'The December revenue analytics report has been generated. See the Reports page.',
+    'notif.monthly_report.message': "This month's revenue analytics report has been generated. See the Reports page.",
   },
 };
 

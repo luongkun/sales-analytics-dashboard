@@ -1,10 +1,11 @@
 import { useState, ComponentType } from 'react';
 import { createPortal } from 'react-dom';
-import { Wallet, Banknote, CreditCard, Sparkles, BadgeCheck, ZoomIn, X } from 'lucide-react';
+import { Wallet, Banknote, CreditCard, Sparkles, BadgeCheck, ZoomIn, X, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatNumber } from '../data/salesData';
 import AnimatedSection from '../components/AnimatedSection';
+import { getVipInfo } from '../utils/vip';
 import momoQr from '../assets/momo.jpg';
 
 const PRESETS = [50000, 100000, 200000, 500000, 1000000, 2000000];
@@ -37,7 +38,11 @@ function TopUpPageInner() {
 
   const amount = custom.trim() ? Math.max(0, parseInt(custom.replace(/\D/g, ''), 10) || 0) : selected;
   const valid = amount >= 10000;
-  const bonus = amount >= 1000000 ? Math.round(amount * 0.05) : amount >= 500000 ? Math.round(amount * 0.02) : 0;
+  // Thưởng theo mệnh giá (backend tính lại chuẩn) + ước tính thưởng VIP theo hạng hiện tại
+  const baseBonus = amount >= 1000000 ? Math.round(amount * 0.05) : amount >= 500000 ? Math.round(amount * 0.02) : 0;
+  const vip = getVipInfo(user.totalTopup ?? 0);
+  const vipBonus = vip.tier ? Math.round((amount * vip.tier.bonusPct) / 100) : 0;
+  const bonus = baseBonus + vipBonus;
 
   const handleTopUp = async () => {
     if (!valid || processing) return;
@@ -45,12 +50,25 @@ function TopUpPageInner() {
     const res = await addBalance(amount, method);
     setProcessing(false);
     if (res.ok) {
+      const parts: string[] = [];
+      if (res.bonus && res.bonus > 0) parts.push(`gồm thưởng ${formatNumber(res.bonus)}đ`);
+      if (res.vipBonus && res.vipBonus > 0) parts.push(`thưởng VIP ${formatNumber(res.vipBonus)}đ`);
       showToast({
         type: 'success',
-        title: 'Nạp tiền thành công! 🎉',
-        message: bonus > 0 ? `+${formatNumber(amount + bonus)}đ (gồm thưởng ${formatNumber(bonus)}đ)` : `+${formatNumber(amount)}đ · Số dư mới: ${formatNumber(res.balance ?? user.balance + amount)}đ`,
-        duration: 4000,
+        title: res.tierUp ? `Lên hạng VIP ${res.tierUp.level} · ${res.tierUp.name}! 👑` : 'Nạp tiền thành công! 🎉',
+        message: `+${formatNumber(amount + (res.bonus ?? 0))}đ${parts.length ? ' (' + parts.join(', ') + ')' : ''} · Số dư mới: ${formatNumber(res.balance ?? user.balance + amount)}đ`,
+        duration: 5000,
       });
+      if (res.tierUp) {
+        setTimeout(() => {
+          showToast({
+            type: 'success',
+            title: `👑 VIP ${res.tierUp!.level} · ${res.tierUp!.name}`,
+            message: 'Bạn đã mở khóa quyền lợi hạng mới — xem chi tiết tại Hồ sơ!',
+            duration: 6000,
+          });
+        }, 800);
+      }
       setCustom('');
       setSelected(PRESETS[0]);
     } else {
@@ -70,6 +88,19 @@ function TopUpPageInner() {
             <h1 className="text-xl font-bold text-gray-800 dark:text-white">Nạp số dư</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Số dư hiện tại: <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(user.balance)}đ</span>
+            </p>
+            <p className="text-xs mt-1 flex items-center gap-1.5 text-amber-600 dark:text-amber-400 truncate">
+              <Crown className="w-3.5 h-3.5 flex-shrink-0" />
+              {vip.tier ? (
+                <>
+                  VIP {vip.tier.level} · {vip.tier.name} — thưởng nạp +{vip.tier.bonusPct}%
+                  {vip.nextTier && <span className="text-gray-400 dark:text-gray-500 hidden sm:inline">· còn {formatNumber(vip.remaining)}đ nữa lên VIP {vip.nextTier.level}</span>}
+                </>
+              ) : (
+                <>
+                  Nạp tổng 100.000đ để mở hạng VIP đầu tiên
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -231,12 +262,20 @@ function TopUpPageInner() {
               <span className="text-gray-500 dark:text-gray-400">Số tiền nạp</span>
               <span className="font-semibold text-gray-800 dark:text-white">{formatNumber(amount)}đ</span>
             </div>
-            {bonus > 0 && (
+            {baseBonus > 0 && (
               <div className="flex justify-between">
                 <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                   <Sparkles className="w-3.5 h-3.5" /> Thưởng nạp tiền
                 </span>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">+{formatNumber(bonus)}đ</span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400">+{formatNumber(baseBonus)}đ</span>
+              </div>
+            )}
+            {vipBonus > 0 && vip.tier && (
+              <div className="flex justify-between">
+                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                  <Crown className="w-3.5 h-3.5" /> Thưởng VIP {vip.tier.level} · {vip.tier.name} (+{vip.tier.bonusPct}%)
+                </span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400">+{formatNumber(vipBonus)}đ</span>
               </div>
             )}
             <div className="flex justify-between">

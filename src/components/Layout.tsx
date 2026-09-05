@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  PackageCheck,
   LogOut,
   ChevronDown,
   Wallet,
@@ -25,8 +26,15 @@ import {
   CirclePlus,
   Check,
   Languages,
+  Crown,
 } from 'lucide-react';
 import CartDrawer from './CartDrawer';
+import LiveSyncLabel from './LiveSyncLabel';
+import CommandPalette from './CommandPalette';
+import { useNotifications } from '../context/NotificationContext';
+import { getVipInfo } from '../utils/vip';
+import { setAppTitle } from '../utils/setTitle';
+import { Search } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatNumber } from '../data/salesData';
 
@@ -174,6 +182,42 @@ function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
                 <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
                   {user.role === 'admin' ? '⚡ Quản trị viên' : 'Thành viên'}
                 </span>
+                {/* Hạng VIP theo tổng tiền đã nạp */}
+                {(() => {
+                  const vip = getVipInfo(user.totalTopup ?? 0);
+                  return (
+                    <div className="mt-2.5 rounded-lg border border-amber-200/60 dark:border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-yellow-500/5 dark:from-amber-400/10 dark:to-yellow-400/5 px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          {vip.tier ? (
+                            <span className={`text-[11px] font-bold truncate ${vip.tier.text}`}>
+                              VIP {vip.tier.level} · {vip.tier.name}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Chưa có hạng VIP</span>
+                          )}
+                        </span>
+                        {vip.tier && (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                            +{vip.tier.bonusPct}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden" role="progressbar" aria-valuenow={vip.progressPct} aria-valuemin={0} aria-valuemax={100}>
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${vip.tier ? vip.tier.bar : 'from-gray-400 to-gray-300'}`}
+                          style={{ width: `${vip.progressPct}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                        {vip.nextTier
+                          ? `Nạp thêm ${formatNumber(vip.remaining)}đ → VIP ${vip.nextTier.level} · ${vip.nextTier.name}`
+                          : 'Đã đạt hạng cao nhất 👑'}
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-emerald-100 dark:border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/10 dark:to-teal-400/5 px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -195,6 +239,17 @@ function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
                 >
                   <CirclePlus className="w-4 h-4" />
                   Nạp số dư
+                </button>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onNavigate('myorders');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"
+                  role="menuitem"
+                >
+                  <PackageCheck className="w-4 h-4" />
+                  Đơn hàng đã mua
                 </button>
                 <button
                   onClick={() => {
@@ -231,6 +286,7 @@ const pageTitles: Record<string, string> = {
   orders: 'Quản lý Đơn hàng',
   products: 'Sản phẩm & Gói dịch vụ',
   checkout: 'Thanh toán',
+  myorders: 'Đơn hàng đã mua',
   customers: 'Phân tích Khách hàng',
   reports: 'Báo cáo & KPI',
   upgrades: 'Nâng cấp',
@@ -239,7 +295,7 @@ const pageTitles: Record<string, string> = {
   admin: 'Quản trị người dùng',
 };
 
-type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'upgrades' | 'profile' | 'topup' | 'admin';
+type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin';
 
 interface NavItem {
   id: PageId;
@@ -256,10 +312,40 @@ interface LayoutProps {
 export default function Layout({ children, activePage, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { itemCount, isCartOpen, openCart, closeCart } = useCart();
+  const { unreadCount } = useNotifications();
   const isCheckout = activePage === 'checkout';
+
+  // ⌘/Ctrl + K mở command palette
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Tiêu đề tab động + badge số thông báo chưa đọc
+  useEffect(() => {
+    const pageTitle = pageTitles[activePage] || 'Dashboard';
+    setAppTitle(
+      unreadCount > 0
+        ? `(${unreadCount}) ${pageTitle} · Sales Suite Pro`
+        : `${pageTitle} · Sales Suite Pro`
+    );
+  }, [activePage, unreadCount]);
+
+  const paletteActions = {
+    toggleTheme,
+    openCart,
+    logout,
+  };
 
   useEffect(() => {
     if (!isCheckout) return;
@@ -320,26 +406,29 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
               </div>
             )}
           </div>
+          {/* Mobile: đóng drawer — icon duy nhất trên mobile */}
           <button
-            className={sidebarCollapsed ? 'hidden lg:flex' : 'lg:hidden'}
+            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Đóng menu"
           >
             <X className="w-5 h-5" />
           </button>
+          {/* Desktop: thu gọn/mở rộng — icon duy nhất trên desktop */}
           {!sidebarCollapsed && (
             <button
-              className="lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setSidebarCollapsed(true)}
-              aria-label="Collapse sidebar"
+              aria-label="Thu gọn thanh bên"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           {sidebarCollapsed && (
             <button
-              className="lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setSidebarCollapsed(false)}
-              aria-label="Expand sidebar"
+              aria-label="Mở rộng thanh bên"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -386,11 +475,34 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
               <h1 className="text-lg font-bold text-gray-800 dark:text-white">
                 {pageTitles[activePage] || 'Dashboard'}
               </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Dữ liệu cập nhật: Tháng 12, 2025</p>
+              <LiveSyncLabel />
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {!isCheckout && (
+              <button
+                onClick={() => setPaletteOpen(true)}
+                className="hidden sm:flex items-center gap-2 pl-3 pr-2 py-2 text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 bg-gray-100/60 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Tìm kiếm nhanh (Ctrl+K)"
+                title="Tìm kiếm nhanh (Ctrl+K)"
+              >
+                <Search className="w-4 h-4" />
+                <span className="hidden md:inline">Tìm nhanh...</span>
+                <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-sans rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-400">
+                  Ctrl K
+                </kbd>
+              </button>
+            )}
+            {!isCheckout && (
+              <button
+                onClick={() => setPaletteOpen(true)}
+                className="sm:hidden relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Tìm kiếm nhanh"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            )}
             {!isCheckout && (
               <button
                 onClick={openCart}
@@ -431,6 +543,16 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
         isOpen={isCartOpen}
         onClose={closeCart}
         onCheckout={() => onNavigate('checkout')}
+      />
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={(pageId) => onNavigate(pageId as PageId)}
+        pages={navItems.map((n) => ({ id: n.id, label: n.label }))}
+        actions={paletteActions}
+        isDarkMode={isDarkMode}
+        cartCount={itemCount}
       />
     </div>
   );

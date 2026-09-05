@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, Lock, BadgeCheck, ShieldCheck, Wallet, Rocket, Mail, Send, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Camera, Lock, BadgeCheck, ShieldCheck, Wallet, Rocket, Mail, Send, CheckCircle2, AlertCircle, X, Crown, Sparkles } from 'lucide-react';
 import { useAuth, User } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatNumber } from '../data/salesData';
 import Avatar, { AVATAR_GRADIENTS } from '../components/Avatar';
 import AnimatedSection from '../components/AnimatedSection';
+import { getVipInfo, VIP_TIERS } from '../utils/vip';
 
 function ProfilePageInner() {
   const { user, updateProfile } = useAuth();
@@ -126,6 +127,116 @@ function ProfilePageInner() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* VIP card — hạng theo tổng tiền đã nạp */}
+      <AnimatedSection delay={50}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-800 dark:text-white">Hạng VIP</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Theo tổng tiền đã nạp vào tài khoản</p>
+                </div>
+              </div>
+              {getVipInfo(user.totalTopup ?? 0).tier ? (
+                <span
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-white bg-gradient-to-r ${getVipInfo(user.totalTopup ?? 0).tier!.gradient} shadow-md flex-shrink-0`}
+                >
+                  <Crown className="w-4 h-4" />
+                  VIP {getVipInfo(user.totalTopup ?? 0).tier!.level} · {getVipInfo(user.totalTopup ?? 0).tier!.name}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">Chưa có hạng</span>
+              )}
+            </div>
+
+            {(() => {
+              const vip = getVipInfo(user.totalTopup ?? 0);
+              return (
+                <>
+                  {/* Tổng đã nạp + tiến độ */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <div className="flex items-center gap-3 rounded-xl border border-amber-100 dark:border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-yellow-500/5 dark:from-amber-400/10 dark:to-yellow-400/5 px-4 py-3">
+                      <div className="w-9 h-9 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Wallet className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Tổng tiền đã nạp</p>
+                        <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatNumber(vip.totalTopup)}đ</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-400/10 dark:to-indigo-400/5 px-4 py-3">
+                      <div className="w-9 h-9 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Thưởng nạp hiện tại</p>
+                        <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                          {vip.tier ? `+${vip.tier.bonusPct}% mỗi lần nạp` : 'Chưa có thưởng VIP'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Thanh tiến độ lên hạng kế */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-medium text-gray-500 dark:text-gray-400">
+                        {vip.nextTier ? `Tiến độ lên VIP ${vip.nextTier.level} · ${vip.nextTier.name}` : 'Hạng cao nhất'}
+                      </span>
+                      <span className="font-bold text-gray-600 dark:text-gray-300">{vip.progressPct}%</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden" role="progressbar" aria-valuenow={vip.progressPct} aria-valuemin={0} aria-valuemax={100}>
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${vip.tier ? vip.tier.bar : 'from-gray-400 to-gray-300'} transition-all duration-500`}
+                        style={{ width: `${vip.progressPct}%` }}
+                      />
+                    </div>
+                    {vip.nextTier && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                        Nạp thêm <span className="font-bold text-amber-600 dark:text-amber-400">{formatNumber(vip.remaining)}đ</span> để lên{' '}
+                        <span className={`font-bold ${vip.nextTier.text}`}>VIP {vip.nextTier.level} · {vip.nextTier.name}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Lộ trình 5 hạng */}
+                  <div className="grid grid-cols-5 gap-1.5" role="list" aria-label="Lộ trình các hạng VIP">
+                    {VIP_TIERS.map((t) => {
+                      const reached = vip.totalTopup >= t.min;
+                      const isCurrent = vip.tier?.level === t.level;
+                      return (
+                        <div
+                          key={t.level}
+                          className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2.5 border text-center transition-colors ${
+                            isCurrent
+                              ? 'border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10'
+                              : reached
+                                ? 'border-emerald-100 dark:border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/5'
+                                : 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50'
+                          }`}
+                          role="listitem"
+                        >
+                          <Crown className={`w-4 h-4 ${reached ? (isCurrent ? 'text-amber-500' : 'text-emerald-500') : 'text-gray-300 dark:text-gray-600'}`} />
+                          <span className={`text-[10px] font-bold leading-tight ${reached ? (isCurrent ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400') : 'text-gray-400 dark:text-gray-500'}`}>
+                            VIP {t.level}
+                          </span>
+                          <span className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 leading-tight">{t.name}</span>
+                          <span className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight">{t.min >= 1000000 ? `${t.min / 1000000}tr` : `${t.min / 1000}k`}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </AnimatedSection>
