@@ -9,6 +9,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
+  Clock,
 } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { useI18n } from '../context/I18nContext';
@@ -22,10 +23,10 @@ const typeIcons = {
 };
 
 const typeStyles = {
-  success: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
-  error: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400',
-  warning: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
-  info: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+  success: 'bg-green-100 text-green-600 dark:bg-green-500/15 dark:text-green-400 ring-1 ring-green-500/20 dark:ring-green-400/20',
+  error: 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400 ring-1 ring-red-500/20 dark:ring-red-400/20',
+  warning: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400 ring-1 ring-amber-500/20 dark:ring-amber-400/20',
+  info: 'bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400 ring-1 ring-blue-500/20 dark:ring-blue-400/20',
 };
 
 function formatRelativeTime(timestamp: number, locale: string): string {
@@ -54,7 +55,7 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
     <div
       className={cn(
         'group relative flex gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/40',
-        !notification.read && 'bg-blue-50/60 dark:bg-blue-900/10'
+        !notification.read && 'bg-blue-50/70 dark:bg-blue-500/10'
       )}
       onClick={handleClick}
       role="button"
@@ -64,6 +65,13 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
       }}
       aria-label={t(notification.titleKey, notification.params)}
     >
+      {/* Gạch dọc xanh đánh dấu chưa đọc */}
+      {!notification.read && (
+        <span
+          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-blue-500 dark:bg-blue-400"
+          aria-hidden="true"
+        />
+      )}
       <div
         className={cn(
           'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
@@ -75,16 +83,19 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
       <div className="flex-1 min-w-0">
         <p
           className={cn(
-            'text-sm text-gray-800 dark:text-gray-100',
-            notification.read ? 'font-normal' : 'font-semibold'
+            'text-sm leading-snug',
+            notification.read
+              ? 'font-medium text-gray-700 dark:text-gray-200'
+              : 'font-semibold text-gray-900 dark:text-white'
           )}
         >
           {t(notification.titleKey, notification.params)}
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+        <p className="text-[13px] text-gray-600 dark:text-gray-300 mt-0.5 leading-relaxed line-clamp-2">
           {t(notification.messageKey, notification.params)}
         </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+        <p className="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+          <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
           {formatRelativeTime(notification.timestamp, locale)}
         </p>
       </div>
@@ -98,7 +109,7 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
             e.stopPropagation();
             removeNotification(notification.id);
           }}
-          className="p-1 rounded text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all focus:opacity-100"
+          className="p-1 rounded text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-all focus:opacity-100"
           aria-label={t('notifications.remove')}
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -169,7 +180,7 @@ export default function NotificationBell({ onNavigate }: { onNavigate?: (page: s
                 {t('notifications.title')}
               </h3>
               {unreadCount > 0 && (
-                <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-xs bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium ring-1 ring-blue-500/20 dark:ring-blue-400/20">
                   {t('notifications.unread_count', { count: unreadCount })}
                 </span>
               )}
@@ -218,7 +229,7 @@ export default function NotificationBell({ onNavigate }: { onNavigate?: (page: s
               <button
                 type="button"
                 onClick={clearAll}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {t('notifications.clear_all')}

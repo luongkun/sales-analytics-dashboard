@@ -153,7 +153,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   {toast.title}
                 </p>
                 {toast.message && (
-                  <p className="mt-0.5 text-[13px] leading-relaxed break-words text-gray-500 dark:text-gray-400">
+                  <p className="mt-0.5 text-[13px] leading-relaxed break-words text-gray-600 dark:text-gray-300">
                     {toast.message}
                   </p>
                 )}
