@@ -21,6 +21,8 @@ import {
   LogOut,
   ChevronDown,
   Wallet,
+  Wrench,
+  Inbox,
   Rocket,
   UserPen,
   CirclePlus,
@@ -37,6 +39,50 @@ import { setAppTitle } from '../utils/setTitle';
 import { Search } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatNumber } from '../data/salesData';
+import { TOOLS } from '../data/tools';
+
+/** Nội dung danh sách công cụ (dùng chung cho dropdown + flyout khi thu gọn) */
+function ToolsList({ onNavigate }: { onNavigate?: () => void }) {
+  if (TOOLS.length === 0) {
+    return (
+      <div className="px-3 py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/60 dark:bg-gray-800/40">
+        <div className="flex items-center gap-2">
+          <Inbox className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Chưa có công cụ</p>
+        </div>
+        <p className="mt-1 text-[10px] leading-relaxed text-gray-400 dark:text-gray-500">
+          Danh sách công cụ sẽ được bổ sung sau
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-0.5">
+      {TOOLS.map((tool) => {
+        const ToolIcon = tool.icon ?? Wrench;
+        return (
+          <button
+            key={tool.id}
+            onClick={() => {
+              // TODO: wiring hành động công cụ sau khi user up nội dung
+              onNavigate?.();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white transition-colors"
+            title={tool.description}
+          >
+            <ToolIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <span className="truncate flex-1 text-left">{tool.name}</span>
+            {tool.badge && (
+              <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300">
+                {tool.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function LanguageSwitcher() {
   const { locale, setLocale } = useI18n();
@@ -313,6 +359,7 @@ interface LayoutProps {
 export default function Layout({ children, activePage, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
@@ -361,6 +408,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
   const handleNavClick = (pageId: PageId) => {
     onNavigate(pageId);
     setSidebarOpen(false);
+    setToolsOpen(false);
   };
 
   const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
@@ -436,7 +484,8 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           )}
         </div>
 
-        <nav className="mt-6 px-3 space-y-1 overflow-y-auto flex-1">
+        <div className="mt-6 px-3 pb-3 flex-1 min-h-0 flex flex-col">
+        <nav className="space-y-1 overflow-y-auto flex-1 min-h-0">
           {navItems.map((item) => {
             const isActive = activePage === item.id;
             return (
@@ -458,6 +507,64 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
             );
           })}
         </nav>
+
+          {/* Nhóm Công cụ — bấm để thả xuống danh sách công cụ (công cụ sẽ được up sau) */}
+          <div className="relative pt-3 mt-3 border-t border-gray-200/70 dark:border-gray-700/60">
+            <button
+              onClick={() => setToolsOpen((o) => !o)}
+              aria-expanded={toolsOpen}
+              aria-haspopup="menu"
+              aria-label="Công cụ"
+              title={sidebarCollapsed ? 'Công cụ' : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                toolsOpen
+                  ? 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-400/15 dark:to-indigo-400/10 text-blue-700 dark:text-blue-300 shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/60 dark:hover:text-white'
+              }`}
+            >
+              <Wrench
+                className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                  toolsOpen ? 'text-blue-600 dark:text-blue-400' : ''
+                }`}
+              />
+              {!sidebarCollapsed && (
+                <>
+                  <span className="truncate flex-1 text-left">Công cụ</span>
+                  {TOOLS.length > 0 && (
+                    <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300">
+                      {TOOLS.length}
+                    </span>
+                  )}
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                      toolsOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </>
+              )}
+            </button>
+
+            {/* Thả xuống inline khi sidebar mở rộng */}
+            {!sidebarCollapsed && toolsOpen && (
+              <div className="mt-1 px-0.5 max-h-72 overflow-y-auto animate-fade-in" role="menu">
+                <ToolsList onNavigate={() => setToolsOpen(false)} />
+              </div>
+            )}
+
+            {/* Flyout bên phải khi sidebar thu gọn (desktop) — neo đáy, mở hướng lên */}
+            {sidebarCollapsed && toolsOpen && (
+              <div
+                className="hidden lg:block absolute left-full bottom-0 ml-3 w-56 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-50 animate-fade-in max-h-80 overflow-y-auto"
+                role="menu"
+              >
+                <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  Công cụ
+                </p>
+                <ToolsList onNavigate={() => setToolsOpen(false)} />
+              </div>
+            )}
+          </div>
+        </div>
       </aside>
 
       {/* Main content */}
