@@ -6,7 +6,6 @@ import {
   CreditCard,
   Sparkles,
   BadgeCheck,
-  ZoomIn,
   X,
   Crown,
   QrCode,
@@ -40,7 +39,7 @@ const METHODS: {
 }[] = [
   { id: 'bank', label: 'Chuyển khoản ngân hàng', sub: 'VietQR động · tự động cộng tiền', icon: Banknote, gradient: 'from-blue-500 to-indigo-600' },
   { id: 'card', label: 'Thẻ ngân hàng', sub: 'Visa · Mastercard', icon: CreditCard, gradient: 'from-purple-500 to-fuchsia-600' },
-  { id: 'momo', label: 'Ví điện tử MoMo', sub: 'Cộng tiền ngay lập tức', icon: Banknote, gradient: 'from-[#A50064] to-[#7C0050]', img: MOMO_LOGO },
+  { id: 'momo', label: 'Ví điện tử MoMo', sub: 'Quét mã QR · nhận tiền ngay', icon: Banknote, gradient: 'from-[#A50064] to-[#7C0050]', img: MOMO_LOGO },
 ];
 
 // ===== Types cho thanh toán VietQR động =====
@@ -68,6 +67,12 @@ interface PaymentRequest {
   bank: { name: string; short: string; accountNo: string; accountName: string };
   qrPayload: string;
   result?: TopupResult | null;
+}
+
+interface MomoTopupResult {
+  amount: number;
+  bonus: number;
+  balance: number;
 }
 
 function fmtCountdown(ms: number): string {
@@ -332,6 +337,173 @@ function BankQrModal({
   );
 }
 
+/** Modal nạp qua ví MoMo — CHỈ mở khi bấm nút "Nạp Xđ" (đã bỏ xem trước inline).
+ *  Flow: mở app MoMo → quét QR / chuyển tới số TK → bấm "Tôi đã chuyển khoản" → nhận tiền + thưởng. */
+function MomoQrModal({
+  amount,
+  bonus,
+  onConfirm,
+  onClose,
+}: {
+  amount: number;
+  bonus: number;
+  onConfirm: (amount: number) => Promise<MomoTopupResult | null>;
+  onClose: () => void;
+}) {
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<MomoTopupResult | null>(null);
+
+  const copy = (text: string, label: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => showToast({ type: 'success', title: `Đã sao chép ${label}` }))
+      .catch(() => showToast({ type: 'error', title: 'Không thể sao chép' }));
+  };
+  const InfoRowProps = { onCopy: copy };
+
+  const confirm = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await onConfirm(amount);
+      if (res) setResult(res);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in"
+      onClick={result ? onClose : undefined}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nạp tiền qua ví MoMo"
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-sm overflow-hidden animate-pop-in max-h-[92vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <img
+              src={MOMO_LOGO}
+              alt="MoMo"
+              className="w-9 h-9 rounded-xl object-cover shadow-md bg-white flex-shrink-0"
+            />
+            <div>
+              <h2 className="font-bold text-gray-800 dark:text-white">Ví điện tử MoMo</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Quét mã → chuyển tiền → nhận thưởng</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Đóng"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-4 custom-scrollbar">
+          {result ? (
+            /* ---------- NẠP THÀNH CÔNG ---------- */
+            <div className="text-center py-2">
+              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#A50064] to-[#7C0050] rounded-full flex items-center justify-center shadow-xl shadow-pink-500/30 animate-pop-in">
+                <Check className="w-8 h-8 text-white" strokeWidth={3} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white mt-4">Nạp tiền thành công!</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Số dư đã được cộng vào tài khoản của bạn.</p>
+              <div className="mt-4 space-y-2 text-sm text-left">
+                <div className="flex justify-between px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
+                  <span className="text-gray-500 dark:text-gray-400">Số tiền nạp</span>
+                  <span className="font-bold text-gray-800 dark:text-white">+{formatNumber(result.amount)}đ</span>
+                </div>
+                {result.bonus > 0 && (
+                  <div className="flex justify-between px-3.5 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10">
+                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <Sparkles className="w-3.5 h-3.5" /> Thưởng
+                    </span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400">+{formatNumber(result.bonus)}đ</span>
+                  </div>
+                )}
+                <div className="flex justify-between px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+                  <span className="text-gray-500 dark:text-gray-400">Số dư mới</span>
+                  <span className="font-bold text-gradient">{formatNumber(result.balance)}đ</span>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="mt-5 w-full py-3 bg-gradient-to-r from-[#A50064] to-[#7C0050] text-white font-bold rounded-xl shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Hoàn tất
+              </button>
+            </div>
+          ) : (
+            /* ---------- CHỜ CHUYỂN QUA MOMO ---------- */
+            <>
+              <div className="flex flex-col items-center">
+                <div className="bg-white rounded-2xl p-3.5 shadow-md ring-1 ring-gray-100 dark:ring-gray-600">
+                  <img src={momoQr} alt="Mã QR MoMo" className="w-52 h-52 rounded-xl" />
+                </div>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <QrCode className="w-3.5 h-3.5" />
+                  Mở app MoMo → Quét mã để chuyển tiền nhanh
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <InfoRow {...InfoRowProps} label="Ví điện tử" value="MoMo" />
+                <InfoRow {...InfoRowProps} label="Chủ tài khoản" value="NGUYỄN THẾ LƯƠNG" />
+                <InfoRow {...InfoRowProps} label="Số tài khoản" value="0368852235" mono copyText="0368852235" />
+                <InfoRow {...InfoRowProps} label="Số tiền chuyển" value={`${formatNumber(amount)}đ`} highlight copyText={String(amount)} />
+              </div>
+
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-400 dark:text-gray-500 px-1">
+                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                Quét mã hoặc chuyển tới số tài khoản trên với ĐÚNG {formatNumber(amount)}đ — sau khi
+                chuyển thành công, bấm nút bên dưới để nhận {formatNumber(amount + bonus)}đ
+                (gồm thưởng {formatNumber(bonus)}đ) vào số dư.
+              </p>
+
+              <button
+                onClick={confirm}
+                disabled={loading}
+                className={`w-full flex items-center justify-center gap-2 py-3.5 font-bold rounded-xl transition-all ${
+                  loading
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#A50064] to-[#7C0050] text-white shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 hover:scale-[1.02] active:scale-[0.98]'
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-pink-600/30 border-t-pink-600 rounded-full animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <BadgeCheck className="w-5 h-5" />
+                    Tôi đã chuyển khoản — Nhận tiền
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Để sau
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function TopUpPageInner() {
   const { user, addBalance, refreshUser } = useAuth();
   const { showToast } = useToast();
@@ -339,8 +511,9 @@ function TopUpPageInner() {
   const [custom, setCustom] = useState('');
   const [method, setMethod] = useState('bank');
   const [processing, setProcessing] = useState(false);
-  const [qrZoom, setQrZoom] = useState(false);
   const [payment, setPayment] = useState<PaymentRequest | null>(null);
+  /** Modal MoMo CHỈ mở khi bấm Nạp — snapshot số tiền & thưởng tại thời điểm bấm */
+  const [momoPay, setMomoPay] = useState<{ amount: number; bonus: number } | null>(null);
 
   if (!user) return null;
 
@@ -352,19 +525,35 @@ function TopUpPageInner() {
   const vipBonus = vip.tier ? Math.round((amount * vip.tier.bonusPct) / 100) : 0;
   const bonus = baseBonus + vipBonus;
 
-  const handleTopUp = async () => {
-    if (!valid || processing) return;
+  /** Gọi API cộng tiền + toast thành công + reset lựa chọn — dùng chung:
+   *  thẻ (nạp trực tiếp) và MoMo (bấm "Tôi đã chuyển khoản" trong modal) */
+  const applyTopup = async (value: number, payMethod: string): Promise<MomoTopupResult | null> => {
+    if (processing) return null;
     setProcessing(true);
-    const res = await addBalance(amount, method);
+    const res = await addBalance(value, payMethod);
     setProcessing(false);
-    if (res.ok) {
-      showTopUpSuccess(res, amount);
-      setCustom('');
-      setSelected(PRESETS[0]);
-    } else {
+    if (!res.ok) {
       showToast({ type: 'error', title: 'Nạp tiền thất bại', message: res.error });
+      return null;
     }
+    showTopUpSuccess(res, value);
+    setCustom('');
+    setSelected(PRESETS[0]);
+    return {
+      amount: value,
+      bonus: res.bonus ?? 0,
+      balance: res.balance ?? user.balance + value,
+    };
   };
+
+  /** Thẻ ngân hàng: bấm Nạp → cộng tiền trực tiếp (flow cũ) */
+  const handleTopUp = () => {
+    if (!valid) return;
+    applyTopup(amount, method);
+  };
+
+  /** MoMo: modal gọi khi user bấm "Tôi đã chuyển khoản" */
+  const confirmMomo = (value: number) => applyTopup(value, 'momo');
 
   /** Toast thành công dùng chung cho nạp trực tiếp (momo/thẻ) + VietQR webhook */
   const showTopUpSuccess = (
@@ -419,6 +608,7 @@ function TopUpPageInner() {
 
   const handlePayClick = () => {
     if (method === 'bank') startBankPayment();
+    else if (method === 'momo') setMomoPay({ amount, bonus });
     else handleTopUp();
   };
 
@@ -553,56 +743,6 @@ function TopUpPageInner() {
       {/* Summary */}
       <AnimatedSection delay={300}>
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-          {method === 'momo' && (
-            <div className="flex flex-col sm:flex-row items-center gap-5 mb-6 p-4 rounded-xl border border-pink-200 dark:border-pink-500/20 bg-pink-50/50 dark:bg-pink-500/5">
-              <button
-                onClick={() => setQrZoom(true)}
-                className="relative group/qr flex-shrink-0 cursor-zoom-in"
-                aria-label="Phóng to mã QR"
-                title="Bấm để phóng to"
-              >
-                <img
-                  src={momoQr}
-                  alt="QR MoMo"
-                  className="w-40 h-40 rounded-xl border-4 border-white dark:border-gray-700 shadow-lg transition-transform duration-200 group-hover/qr:scale-[1.03]"
-                />
-                <span className="absolute inset-0 rounded-xl bg-black/0 group-hover/qr:bg-black/30 flex items-center justify-center transition-colors">
-                  <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover/qr:opacity-100 transition-opacity" />
-                </span>
-              </button>
-              <div className="space-y-2 text-sm min-w-0 text-center sm:text-left">
-                <p className="flex items-center justify-center sm:justify-start gap-1.5 font-bold text-pink-600 dark:text-pink-400">
-                  <Wallet className="w-4 h-4" /> Quét QR MoMo để nạp
-                </p>
-                <div className="flex justify-between gap-3 sm:justify-start">
-                  <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">Ngân hàng:</span>
-                  <span className="font-semibold text-gray-800 dark:text-white">MoMo</span>
-                </div>
-                <div className="flex justify-between gap-3 sm:justify-start">
-                  <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">Chủ tài khoản:</span>
-                  <span className="font-semibold text-gray-800 dark:text-white">NGUYỄN THẾ LƯƠNG</span>
-                </div>
-                <div className="flex items-center justify-center gap-2 sm:justify-start">
-                  <span className="text-gray-500 dark:text-gray-400">Số tài khoản:</span>
-                  <span className="font-mono font-bold text-gray-800 dark:text-white">0368852235</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText('0368852235').then(() => {
-                        showToast({ type: 'success', title: 'Đã sao chép số tài khoản' });
-                      });
-                    }}
-                    className="text-xs text-pink-600 dark:text-pink-400 hover:underline"
-                  >
-                    Sao chép
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Mở app MoMo → quét mã → chuyển đúng số tiền → bấm nút bên dưới
-                </p>
-              </div>
-            </div>
-          )}
-
           <div className="space-y-2.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500 dark:text-gray-400">Số tiền nạp</span>
@@ -663,73 +803,22 @@ function TopUpPageInner() {
           <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-3">
             {method === 'bank'
               ? 'Số tiền được cộng tự động khi hệ thống nhận được chuyển khoản'
-              : 'Số dư sẽ được cộng ngay sau khi nạp · Bảo mật 100%'}
+              : method === 'momo'
+                ? 'Mã QR MoMo sẽ hiện ở bước tiếp theo · Chuyển tiền xong bấm xác nhận để nhận tiền'
+                : 'Số dư sẽ được cộng ngay sau khi nạp · Bảo mật 100%'}
           </p>
         </div>
       </AnimatedSection>
 
-      {/* QR Zoom lightbox */}
-      {qrZoom &&
-        createPortal(
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in"
-            onClick={() => setQrZoom(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Mã QR phóng to"
-          >
-            <div
-              className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-sm overflow-hidden animate-pop-in"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 bg-gradient-to-br from-[#A50064] to-[#7C0050] rounded-xl flex items-center justify-center shadow-md shadow-pink-500/30">
-                    <Wallet className="w-4.5 h-4.5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-gray-800 dark:text-white">Quét QR MoMo</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Mở app MoMo → Quét mã</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setQrZoom(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  aria-label="Đóng"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-5 flex flex-col items-center">
-                <img
-                  src={momoQr}
-                  alt="QR MoMo phóng to"
-                  className="w-72 h-72 rounded-xl border border-gray-100 dark:border-gray-600 shadow-md"
-                />
-                <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-                  Số tiền: <span className="font-bold text-gradient">{formatNumber(amount + bonus)}đ</span>
-                </p>
-              </div>
-
-              <div className="px-5 pb-5 space-y-2 text-sm border-t border-gray-100 dark:border-gray-700 pt-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Ngân hàng</span>
-                  <span className="font-semibold text-gray-800 dark:text-white">MoMo</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Chủ tài khoản</span>
-                  <span className="font-semibold text-gray-800 dark:text-white">NGUYỄN THẾ LƯƠNG</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-gray-400">Số tài khoản</span>
-                  <span className="font-mono font-bold text-gray-800 dark:text-white">0368852235</span>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {/* Modal MoMo — CHỈ mở khi bấm nút Nạp (đã bỏ xem trước inline + lightbox cũ) */}
+      {momoPay && (
+        <MomoQrModal
+          amount={momoPay.amount}
+          bonus={momoPay.bonus}
+          onConfirm={confirmMomo}
+          onClose={() => setMomoPay(null)}
+        />
+      )}
 
       {/* Modal VietQR động — flow đủ 5 bước: tạo QR → quét → webhook → cộng tiền → UI tự cập nhật */}
       {payment && (
