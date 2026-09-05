@@ -9,9 +9,11 @@ interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onCheckout: () => void;
+  /** Chuyển đến trang sản phẩm (nút "Xem sản phẩm" khi giỏ trống) */
+  onBrowseProducts: () => void;
 }
 
-export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+export default function CartDrawer({ isOpen, onClose, onBrowseProducts }: CartDrawerProps) {
   const { items, total, itemCount, removeFromCart, updateQuantity, getProduct, clearCart } = useCart();
   const { user, placeOrder } = useAuth();
   const { showToast } = useToast();
@@ -102,7 +104,10 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 Khám phá các gói dịch vụ và thêm slot bạn cần.
               </p>
               <button
-                onClick={onClose}
+                onClick={() => {
+                  onBrowseProducts();
+                  onClose();
+                }}
                 className="mt-4 px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
               >
                 Xem sản phẩm

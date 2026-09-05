@@ -654,6 +654,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
         isOpen={isCartOpen}
         onClose={closeCart}
         onCheckout={() => onNavigate('checkout')}
+        onBrowseProducts={() => onNavigate('products')}
       />
 
       <CommandPalette
