@@ -770,15 +770,5 @@ body {
   animation-delay: 1.4s;
 }
 
-/* Tôn trọng người dùng muốn giảm chuyển động */
-@media (prefers-reduced-motion: reduce) {
-  .vip-fx-silver .vip-sheen::after,
-  .vip-fx-gold,
-  .vip-fx-gold .vip-sheen::after,
-  .vip-fx-diamond,
-  .vip-fx-diamond .vip-sheen::after,
-  .vip-fx-diamond::before,
-  .vip-spark {
-    animation: none;
-  }
-}
+/* Hiệu ứng huy hiệu VIP LUÔN chạy kể cả Windows/trình duyệt tắt hiệu ứng
+   (theo yêu cầu chủ shop — prefers-reduced-motion bị bỏ qua cho VIP badge) */
