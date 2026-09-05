@@ -9,7 +9,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
-  Clock,
 } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { useI18n } from '../context/I18nContext';
@@ -94,8 +93,7 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
         <p className="text-[13px] text-gray-600 dark:text-gray-300 mt-0.5 leading-relaxed line-clamp-2">
           {t(notification.messageKey, notification.params)}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-          <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {formatRelativeTime(notification.timestamp, locale)}
         </p>
       </div>
