@@ -119,7 +119,7 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
               </button>
               <button
                 onClick={() => onNavigate?.('products')}
-                className="flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 <FileText className="w-4 h-4" />
                 Xem sản phẩm
@@ -136,7 +136,7 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
       <AnimatedSection delay={0}>
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Quay lại
@@ -222,7 +222,7 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
                         {item.quantity} slot × {formatCurrency(product.price)}
                       </p>
                     </div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                    <p className="font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {formatCurrency(product.price * item.quantity)}
                     </p>
                   </div>
@@ -233,7 +233,7 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
             <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-gray-400">Tạm tính</span>
-                <span className="text-gray-700 dark:text-gray-200">{formatCurrency(total)}</span>
+                <span className="text-gray-700 dark:text-gray-300">{formatCurrency(total)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-gray-400">Phí giao dịch</span>

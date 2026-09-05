@@ -348,7 +348,7 @@ export default function LoginPage() {
               className="flex flex-col items-center text-center gap-1 p-3.5 rounded-xl bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border border-white/60 dark:border-white/10"
             >
               <b.icon className="w-5 h-5 text-emerald-500" />
-              <p className="text-xs font-bold text-gray-700 dark:text-gray-200 leading-tight">{b.label}</p>
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-tight">{b.label}</p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">{b.sub}</p>
             </div>
           ))}
@@ -401,7 +401,7 @@ function GoogleSetupHint({ onClose }: { onClose: () => void }) {
         <div className="px-5 pb-5">
           <button
             onClick={onClose}
-            className="w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             Đã hiểu
           </button>

@@ -472,7 +472,7 @@ const MyOrdersPage = ({ onNavigate }: MyOrdersPageProps) => {
                                     <span className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 text-[10px] font-bold text-gray-500 dark:text-gray-400 flex items-center justify-center flex-shrink-0">
                                       {i.quantity}×
                                     </span>
-                                    <span className="text-gray-700 dark:text-gray-200 truncate">{i.name}</span>
+                                    <span className="text-gray-700 dark:text-gray-300 truncate">{i.name}</span>
                                   </div>
                                   <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
                                     {unitPrice !== null

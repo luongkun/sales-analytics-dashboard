@@ -360,7 +360,7 @@ function ProfilePageInner() {
               disabled={!dirty}
               className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-colors ${
                 dirty
-                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   : 'text-gray-400 cursor-not-allowed'
               }`}
             >
@@ -496,7 +496,7 @@ function SecurityModal({ mode, onClose }: { mode: 'email' | 'password'; onClose:
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 text-sm font-bold rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2.5 text-sm font-bold rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Hủy
                 </button>
@@ -609,7 +609,7 @@ function SecurityModal({ mode, onClose }: { mode: 'email' | 'password'; onClose:
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 text-sm font-bold rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2.5 text-sm font-bold rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Hủy
                 </button>

@@ -69,7 +69,7 @@ export default function TopProducts({ data }: TopProductsProps) {
                   )}
                 </td>
                 <td className="py-3 pr-4">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{product.name}</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-300">{product.name}</p>
                 </td>
                 <td className="py-3 pr-4 hidden sm:table-cell">
                   <span
@@ -84,7 +84,7 @@ export default function TopProducts({ data }: TopProductsProps) {
                   <span className="text-sm text-gray-600 dark:text-gray-400">{formatNumber(product.sold)}</span>
                 </td>
                 <td className="py-3 text-right">
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-300">
                     {formatCurrency(product.revenue)}
                   </span>
                 </td>

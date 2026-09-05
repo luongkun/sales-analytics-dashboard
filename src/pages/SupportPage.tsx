@@ -99,7 +99,7 @@ export default function SupportPage() {
                       className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                         isCopied
                           ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                          : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          : 'text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                       }`}
                       aria-label={`Sao chép ${c.label}`}
                       title={`Sao chép ${c.label}`}
@@ -190,7 +190,7 @@ export default function SupportPage() {
                       className="w-full flex items-center justify-between gap-3 py-3.5 text-left group"
                       aria-expanded={isOpen}
                     >
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {faq.question}
                       </span>
                       <ChevronDown

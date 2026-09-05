@@ -583,7 +583,7 @@ export default function AdminPage() {
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                   tab === 'users'
                     ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
                 <Users className="w-4 h-4" />
@@ -596,7 +596,7 @@ export default function AdminPage() {
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                   tab === 'orders'
                     ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
                 <Package className="w-4 h-4" />
@@ -654,7 +654,7 @@ export default function AdminPage() {
             <button
               onClick={() => runBulk('role', 'admin')}
               disabled={bulkBusy}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
             >
               <ShieldCheck className="w-4 h-4 text-purple-500" />
               Đặt làm Quản trị viên
@@ -662,7 +662,7 @@ export default function AdminPage() {
             <button
               onClick={() => runBulk('role', 'member')}
               disabled={bulkBusy}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
             >
               <UserCheck className="w-4 h-4 text-gray-500" />
               Đặt làm Thành viên
@@ -703,7 +703,7 @@ export default function AdminPage() {
                   setRoleFilter(e.target.value);
                   setPage(1);
                 }}
-                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Lọc theo vai trò"
               >
                 <option value="all">Tất cả vai trò</option>
@@ -716,7 +716,7 @@ export default function AdminPage() {
                   setSort(e.target.value);
                   setPage(1);
                 }}
-                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Sắp xếp"
               >
                 {SORT_OPTIONS.map((s) => (
@@ -861,7 +861,7 @@ export default function AdminPage() {
                     setPageSize(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Số dòng mỗi trang"
                 >
                   {PAGE_SIZES.map((s) => (
@@ -873,7 +873,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => setPage(1)}
                   disabled={page === 1}
-                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   aria-label="Trang đầu"
                 >
                   <ChevronsLeft className="w-4 h-4" />
@@ -881,7 +881,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   aria-label="Trang trước"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -907,7 +907,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                   disabled={page === pageCount}
-                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   aria-label="Trang sau"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -915,7 +915,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => setPage(pageCount)}
                   disabled={page === pageCount}
-                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   aria-label="Trang cuối"
                 >
                   <ChevronsRight className="w-4 h-4" />
@@ -1089,7 +1089,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setOrdersPage(1)}
                 disabled={ordersPage === 1}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                 aria-label="Trang đầu"
               >
                 <ChevronsLeft className="w-4 h-4" />
@@ -1097,7 +1097,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
                 disabled={ordersPage === 1}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                 aria-label="Trang trước"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -1123,7 +1123,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setOrdersPage((p) => Math.min(ordersPageCount, p + 1))}
                 disabled={ordersPage === ordersPageCount}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                 aria-label="Trang sau"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1131,7 +1131,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setOrdersPage(ordersPageCount)}
                 disabled={ordersPage === ordersPageCount}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                 aria-label="Trang cuối"
               >
                 <ChevronsRight className="w-4 h-4" />
@@ -1190,7 +1190,7 @@ export default function AdminPage() {
               <button
                 onClick={() => setConfirmBulkDelete(false)}
                 disabled={bulkBusy}
-                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
               >
                 Hủy
               </button>
@@ -1319,7 +1319,7 @@ export default function AdminPage() {
                           <span className={adjustMode === 'add' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}>
                             {adjustMode === 'add' ? '+' : '−'} {formatNumber(adjustValue)}đ
                           </span>{' '}
-                          = <span className="font-bold text-gray-700 dark:text-gray-200">{formatNumber(previewBalance)}đ</span>
+                          = <span className="font-bold text-gray-700 dark:text-gray-300">{formatNumber(previewBalance)}đ</span>
                         </>
                       ) : (
                         <span className="flex items-center gap-1">
@@ -1346,7 +1346,7 @@ export default function AdminPage() {
                           <span className="truncate">
                             {formatNumber(editingUser.totalTopup)}đ{' '}
                             <span className="text-emerald-600 dark:text-emerald-400">+ {formatNumber(adjustValue)}đ</span>{' '}
-                            = <span className="font-bold text-gray-700 dark:text-gray-200">{formatNumber(editingUser.totalTopup + adjustValue)}đ</span>
+                            = <span className="font-bold text-gray-700 dark:text-gray-300">{formatNumber(editingUser.totalTopup + adjustValue)}đ</span>
                           </span>
                         </div>
                         {vipUpPreview ? (
@@ -1451,7 +1451,7 @@ export default function AdminPage() {
             <div className="flex gap-3 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setEditingUser(null)}
-                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Đóng
               </button>

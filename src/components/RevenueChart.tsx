@@ -141,7 +141,7 @@ export default function RevenueChart({ data, fetchDaily, onDrillDown }: RevenueC
                 const item = payload[0].payload as Partial<DailyRevenue>;
                 return (
                   <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-blue-200/60 dark:border-blue-700/60 rounded-xl shadow-xl shadow-blue-500/10 p-3.5 ring-1 ring-black/5">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{drilledMonth ? 'Ngày' : prettyMonth(String(label))}</p>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{drilledMonth ? 'Ngày' : prettyMonth(String(label))}</p>
                     <p className="text-base font-bold text-gradient mt-1">
                       {formatCurrency(Number(payload[0].value))}
                     </p>

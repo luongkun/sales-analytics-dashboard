@@ -85,7 +85,7 @@ function NotificationItem({ notification, onNavigate }: { notification: Notifica
           className={cn(
             'text-sm leading-snug',
             notification.read
-              ? 'font-medium text-gray-700 dark:text-gray-200'
+              ? 'font-medium text-gray-700 dark:text-gray-300'
               : 'font-semibold text-gray-900 dark:text-white'
           )}
         >

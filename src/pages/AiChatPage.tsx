@@ -188,7 +188,7 @@ export default function AiChatPage() {
             </div>
             <button
               onClick={resetChat}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               aria-label="Trò chuyện mới"
               title="Bắt đầu cuộc trò chuyện mới"
             >
@@ -228,7 +228,7 @@ export default function AiChatPage() {
                       ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-br-md shadow-md shadow-violet-500/20'
                       : m.error
                         ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200/60 dark:border-red-500/20 rounded-bl-md'
-                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-bl-md shadow-sm'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-bl-md shadow-sm'
                   }`}
                 >
                   <RichText text={m.content} />
@@ -298,7 +298,7 @@ export default function AiChatPage() {
                 maxLength={1000}
                 placeholder="Nhập câu hỏi… (Enter để gửi)"
                 aria-label="Tin nhắn gửi trợ lý AI"
-                className="flex-1 resize-none max-h-32 bg-gray-100 dark:bg-gray-700/60 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-violet-500/40 transition-shadow custom-scrollbar"
+                className="flex-1 resize-none max-h-32 bg-gray-100 dark:bg-gray-700/60 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-violet-500/40 transition-shadow custom-scrollbar"
               />
               <button
                 type="submit"

@@ -75,7 +75,7 @@ export default function PolicyPage() {
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
                     active
                       ? 'bg-gray-100 dark:bg-gray-700/60 font-semibold text-gray-800 dark:text-white'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                   aria-current={active ? 'true' : undefined}
                 >

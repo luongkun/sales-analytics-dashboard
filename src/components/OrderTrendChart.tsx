@@ -22,7 +22,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
     const rate = orders > 0 ? ((returns / orders) * 100).toFixed(1) : '0';
     return (
       <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-violet-200/60 dark:border-violet-700/60 rounded-xl shadow-xl p-3.5 ring-1 ring-black/5">
-        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{label}</p>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{label}</p>
         <div className="flex items-center justify-between gap-6 text-sm">
           <span className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
             <span className="w-2 h-2 rounded-full bg-gradient-to-br from-blue-500 to-violet-500" />

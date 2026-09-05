@@ -460,7 +460,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           </div>
           {/* Mobile: đóng drawer — icon duy nhất trên mobile */}
           <button
-            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => setSidebarOpen(false)}
             aria-label="Đóng menu"
           >
@@ -469,7 +469,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           {/* Desktop: thu gọn/mở rộng — icon duy nhất trên desktop */}
           {!sidebarCollapsed && (
             <button
-              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setSidebarCollapsed(true)}
               aria-label="Thu gọn thanh bên"
             >
@@ -478,7 +478,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           )}
           {sidebarCollapsed && (
             <button
-              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setSidebarCollapsed(false)}
               aria-label="Mở rộng thanh bên"
             >
@@ -577,7 +577,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           <div className="h-16 mx-4 lg:ml-6 lg:mr-0 rounded-2xl bg-white/60 dark:bg-gray-800/50 backdrop-blur-2xl border border-white/70 dark:border-white/10 shadow-lg shadow-gray-200/50 dark:shadow-black/30 flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-4">
             <button
-              className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="w-6 h-6" />

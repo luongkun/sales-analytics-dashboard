@@ -28,7 +28,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
     const total = payload.reduce((sum, entry) => sum + Number(entry.value), 0);
     return (
       <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-blue-200/60 dark:border-blue-700/60 rounded-xl shadow-xl p-3.5 ring-1 ring-black/5">
-        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{label}</p>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{label}</p>
         {payload.map((entry) => (
           <div key={entry.name} className="flex items-center justify-between gap-6 text-sm">
             <span className="flex items-center gap-2 text-gray-600 dark:text-gray-300">

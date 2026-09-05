@@ -286,7 +286,7 @@ export default function CommandPalette({
           />
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label={t('common.close')}
           >
             <X className="w-4 h-4" />
@@ -335,7 +335,7 @@ export default function CommandPalette({
                             className={`block text-sm font-medium truncate ${
                               active
                                 ? 'text-blue-700 dark:text-blue-300'
-                                : 'text-gray-700 dark:text-gray-200'
+                                : 'text-gray-700 dark:text-gray-300'
                             }`}
                           >
                             {item.title}
