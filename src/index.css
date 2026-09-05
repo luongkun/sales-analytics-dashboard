@@ -570,16 +570,16 @@ body {
 /* ============================================
    VIP RANK BADGE FX — huy hiệu "VIP X · ..." góc phải thẻ Hạng VIP (Hồ sơ)
    VIP1 Đồng: nâu tĩnh, không hiệu ứng
-   VIP2 Bạc:  dải sáng lướt nhẹ qua bề mặt
-   VIP3 Vàng: vòng sáng vàng quay quanh viền + glow + sao lấp lánh
-   VIP4 Kim Cương: vòng sáng 2 cung quay nhanh + gradient chảy + 5 sao lấp lánh
+   VIP2 Bạc:  vệt ánh sáng lướt nhẹ
+   VIP3 Vàng: hào quang nhịp + tia lấp lánh
+   VIP4 Kim Cương: gradient tuôn + quầng conic + lấp lánh dày hơn
    ============================================ */
 .vip-rank-badge {
   position: relative;
   isolation: isolate;
 }
 
-/* Dải sáng lướt qua bề mặt — tự cắt theo hình pill */
+/* Lớp vệt sáng — tự cắt theo hình pill */
 .vip-rank-badge .vip-sheen {
   position: absolute;
   inset: 0;
@@ -591,230 +591,194 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    100deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.12) 38%,
-    rgba(255, 255, 255, 0.9) 50%,
-    rgba(255, 255, 255, 0.12) 62%,
-    transparent 80%
-  );
-  transform: translateX(-140%);
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-130%);
   opacity: 0;
 }
 @keyframes vip-sheen-sweep {
   0% {
-    transform: translateX(-140%);
+    transform: translateX(-130%);
     opacity: 0;
   }
-  18% {
+  25% {
     opacity: 1;
   }
-  82% {
+  75% {
     opacity: 1;
   }
   100% {
-    transform: translateX(140%);
+    transform: translateX(130%);
     opacity: 0;
   }
 }
 
-/* Vòng sáng conic quay quanh viền (dùng chung, mask để chỉ thấy viền ring) */
-@property --vip-ring-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-.vip-ring-rotate {
-  position: absolute;
-  inset: -4px;
-  border-radius: inherit;
-  padding: 2px;
-  pointer-events: none;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-}
-@keyframes vip-ring-rotate {
-  to {
-    --vip-ring-angle: 360deg;
-  }
-}
-
-/* --- VIP 2 Bạc: dải sáng lướt nhẹ, nhịp chậm rãi --- */
+/* --- VIP 2 Bạc: ánh nhẹ — vệt sáng chậm, dịu --- */
 .vip-fx-silver .vip-sheen::after {
-  animation: vip-sheen-sweep 3.2s ease-in-out infinite;
+  animation: vip-sheen-sweep 4.5s ease-in-out infinite;
 }
 
-/* --- VIP 3 Vàng: vòng comet vàng quay + glow nhịp + dải sáng + 3 sao --- */
+/* --- VIP 3 Vàng: lấp lánh — hào quang nhịp + sheen + tia lấp lánh --- */
 .vip-fx-gold {
-  animation: vip-gold-glow 2s ease-in-out infinite;
+  animation: vip-gold-glow 2.4s ease-in-out infinite;
 }
 .vip-fx-gold .vip-sheen::after {
-  animation: vip-sheen-sweep 2.6s ease-in-out infinite;
-}
-.vip-fx-gold .vip-ring-rotate {
-  background: conic-gradient(
-    from var(--vip-ring-angle),
-    rgba(180, 83, 9, 0.1),
-    rgba(253, 224, 71, 0.55) 60deg,
-    #fde047 95deg,
-    #ffffff 115deg,
-    #fde047 135deg,
-    rgba(253, 224, 71, 0.55) 170deg,
-    rgba(180, 83, 9, 0.12) 250deg,
-    rgba(245, 158, 11, 0.3) 330deg,
-    rgba(180, 83, 9, 0.1)
-  );
-  filter: drop-shadow(0 0 2.5px rgba(253, 224, 71, 0.8));
-  animation: vip-ring-rotate 3s linear infinite;
+  animation: vip-sheen-sweep 3.2s ease-in-out infinite;
 }
 @keyframes vip-gold-glow {
   0%,
   100% {
     box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.15),
-      0 0 10px 2px rgba(245, 158, 11, 0.5);
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 0 8px 1px rgba(245, 158, 11, 0.45);
   }
   50% {
     box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.15),
-      0 0 22px 6px rgba(250, 204, 21, 0.95),
-      0 0 38px 9px rgba(245, 158, 11, 0.5);
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 0 18px 5px rgba(250, 204, 21, 0.85),
+      0 0 32px 7px rgba(245, 158, 11, 0.4);
   }
 }
 
-/* --- VIP 4 Kim Cương: 2 cung sáng quay nhanh + gradient chảy + 5 sao --- */
+/* --- VIP 4 Kim Cương: sang trọng hơn nữa --- */
+@property --vip-ring-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
 .vip-fx-diamond {
-  background-image: linear-gradient(
-    90deg,
-    #6d28d9,
+  background-image: linear-gradient(90deg, #a855f7, #d946ef, #f0abfc, #d946ef, #a855f7);
+  background-size: 300% 100%;
+  animation:
+    vip-diamond-glow 2.2s ease-in-out infinite,
+    vip-gradient-flow 4s ease-in-out infinite;
+}
+.vip-fx-diamond .vip-sheen::after {
+  animation: vip-sheen-sweep 2.4s ease-in-out infinite;
+}
+/* quầng sáng conic ôm quanh viền, xoay nhẹ */
+.vip-fx-diamond::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--vip-ring-angle),
     #a855f7,
     #e879f9,
     #fdf4ff,
     #d946ef,
-    #a855f7,
-    #6d28d9
+    #9333ea,
+    #a855f7
   );
-  background-size: 250% 100%;
+  filter: blur(1.5px);
   animation:
-    vip-diamond-glow 1.8s ease-in-out infinite,
-    vip-gradient-flow 2.5s linear infinite alternate;
+    vip-ring-spin 3.5s linear infinite,
+    vip-ring-pulse 2.2s ease-in-out infinite;
 }
-.vip-fx-diamond .vip-sheen::after {
-  animation: vip-sheen-sweep 2s ease-in-out infinite;
-}
-.vip-fx-diamond .vip-ring-rotate {
-  inset: -4.5px;
-  padding: 2.5px;
-  background: conic-gradient(
-    from var(--vip-ring-angle),
-    rgba(147, 51, 234, 0.15),
-    #e879f9 40deg,
-    #ffffff 62deg,
-    #e879f9 84deg,
-    rgba(147, 51, 234, 0.15) 140deg,
-    rgba(217, 70, 239, 0.65) 195deg,
-    #fdf4ff 225deg,
-    rgba(217, 70, 239, 0.65) 255deg,
-    rgba(147, 51, 234, 0.15) 320deg,
-    rgba(147, 51, 234, 0.15)
-  );
-  filter: drop-shadow(0 0 3px rgba(232, 121, 249, 0.9));
-  animation: vip-ring-rotate 1.6s linear infinite;
-}
-@keyframes vip-gradient-flow {
-  from {
-    background-position: 0% 50%;
-  }
+@keyframes vip-ring-spin {
   to {
-    background-position: 100% 50%;
+    --vip-ring-angle: 360deg;
+  }
+}
+@keyframes vip-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
   }
 }
 @keyframes vip-diamond-glow {
   0%,
   100% {
     box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.15),
-      0 0 14px 3px rgba(168, 85, 247, 0.6);
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 0 12px 2px rgba(168, 85, 247, 0.55);
   }
   50% {
     box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.15),
-      0 0 28px 8px rgba(217, 70, 239, 1),
-      0 0 52px 13px rgba(168, 85, 247, 0.55);
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 0 24px 6px rgba(217, 70, 239, 0.9),
+      0 0 44px 10px rgba(168, 85, 247, 0.45);
+  }
+}
+@keyframes vip-gradient-flow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 }
 
-/* --- Sao lấp lánh (Vàng 3 sao · Kim Cương 5 sao) — 4 cánh, xoay khi nở --- */
+/* --- Tia lấp lánh (Vàng 3 tia · Kim Cương 5 tia) --- */
 .vip-spark {
   position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
   pointer-events: none;
-  animation: vip-spark-twinkle 1.2s ease-in-out infinite;
+  animation: vip-spark-twinkle 1.6s ease-in-out infinite;
 }
 .vip-fx-gold .vip-spark {
-  width: 11px;
-  height: 11px;
-  background: #fde047;
-  clip-path: polygon(50% 0%, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0% 50%, 38% 38%);
-  filter: drop-shadow(0 0 2.5px rgba(253, 224, 71, 0.95));
+  background: radial-gradient(circle, #ffffff 0%, #fde047 45%, transparent 72%);
+  filter: drop-shadow(0 0 2px rgba(253, 224, 71, 0.9));
 }
 .vip-fx-diamond .vip-spark {
-  width: 12px;
-  height: 12px;
-  background: radial-gradient(circle, #ffffff 20%, #f0abfc 60%);
-  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
-  filter: drop-shadow(0 0 3px rgba(240, 171, 252, 1));
-  animation-duration: 1s;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #ffffff 0%, #f0abfc 45%, transparent 72%);
+  filter: drop-shadow(0 0 2.5px rgba(240, 171, 252, 0.95));
 }
 @keyframes vip-spark-twinkle {
   0%,
   100% {
     opacity: 0;
-    transform: scale(0) rotate(0deg);
+    transform: scale(0.2);
   }
   50% {
     opacity: 1;
-    transform: scale(1.15) rotate(140deg);
+    transform: scale(1);
   }
 }
 .vip-spark.s1 {
-  top: -4px;
-  left: 8%;
+  top: -2px;
+  left: 10%;
   animation-delay: 0s;
 }
 .vip-spark.s2 {
-  bottom: -4px;
-  right: 10%;
-  animation-delay: 0.25s;
+  bottom: -2px;
+  right: 12%;
+  animation-delay: 0.35s;
 }
 .vip-spark.s3 {
-  top: 50%;
-  left: -4px;
-  margin-top: -6px;
-  animation-delay: 0.5s;
+  top: 55%;
+  left: -2px;
+  animation-delay: 0.7s;
 }
 .vip-spark.s4 {
-  top: -4px;
-  right: 30%;
-  animation-delay: 0.75s;
+  top: -2px;
+  right: 32%;
+  animation-delay: 1.05s;
 }
 .vip-spark.s5 {
-  bottom: -4px;
-  left: 28%;
-  animation-delay: 1s;
+  bottom: -2px;
+  left: 30%;
+  animation-delay: 1.4s;
 }
 
-/* Hiệu ứng VIP LUÔN chạy bất kể cài đặt prefers-reduced-motion của Windows/trình duyệt
-   (theo yêu cầu chủ shop — huy hiệu hạng là điểm nhấn thương hiệu) */
-.vip-fx-silver .vip-sheen::after,
-.vip-fx-gold,
-.vip-fx-gold .vip-sheen::after,
-.vip-fx-gold .vip-ring-rotate,
-.vip-fx-diamond,
-.vip-fx-diamond .vip-sheen::after,
-.vip-fx-diamond .vip-ring-rotate,
-.vip-spark {
-  animation-play-state: running !important;
+/* Tôn trọng người dùng muốn giảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  .vip-fx-silver .vip-sheen::after,
+  .vip-fx-gold,
+  .vip-fx-gold .vip-sheen::after,
+  .vip-fx-diamond,
+  .vip-fx-diamond .vip-sheen::after,
+  .vip-fx-diamond::before,
+  .vip-spark {
+    animation: none;
+  }
 }
