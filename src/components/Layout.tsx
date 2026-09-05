@@ -42,7 +42,7 @@ import { formatNumber } from '../data/salesData';
 import { TOOLS } from '../data/tools';
 
 /** Nội dung danh sách công cụ (dùng chung cho dropdown + flyout khi thu gọn) */
-function ToolsList({ onNavigate }: { onNavigate?: () => void }) {
+function ToolsList({ onNavigate }: { onNavigate?: (pageId: string) => void }) {
   if (TOOLS.length === 0) {
     return (
       <div className="px-3 py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/60 dark:bg-gray-800/40">
@@ -64,8 +64,8 @@ function ToolsList({ onNavigate }: { onNavigate?: () => void }) {
           <button
             key={tool.id}
             onClick={() => {
-              // TODO: wiring hành động công cụ sau khi user up nội dung
-              onNavigate?.();
+              // Điều hướng tới trang công cụ (nếu có) — vd Hỗ trợ → /support
+              if (tool.pageId) onNavigate?.(tool.pageId);
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white transition-colors"
             title={tool.description}
@@ -340,9 +340,10 @@ const pageTitles: Record<string, string> = {
   profile: 'Hồ sơ cá nhân',
   topup: 'Nạp số dư',
   admin: 'Quản trị người dùng',
+  support: 'Hỗ trợ & Liên hệ',
 };
 
-type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin';
+type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support';
 
 interface NavItem {
   id: PageId;
@@ -547,7 +548,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
             {/* Thả xuống inline khi sidebar mở rộng */}
             {!sidebarCollapsed && toolsOpen && (
               <div className="mt-1 px-0.5 max-h-72 overflow-y-auto animate-fade-in" role="menu">
-                <ToolsList onNavigate={() => setToolsOpen(false)} />
+                <ToolsList onNavigate={(id) => handleNavClick(id as PageId)} />
               </div>
             )}
 
@@ -560,7 +561,7 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
                 <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                   Công cụ
                 </p>
-                <ToolsList onNavigate={() => setToolsOpen(false)} />
+                <ToolsList onNavigate={(id) => handleNavClick(id as PageId)} />
               </div>
             )}
           </div>
@@ -657,7 +658,13 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onNavigate={(pageId) => onNavigate(pageId as PageId)}
-        pages={navItems.map((n) => ({ id: n.id, label: n.label }))}
+        pages={[
+          ...navItems.map((n) => ({ id: n.id, label: n.label })),
+          ...TOOLS.filter((t) => t.pageId).map((t) => ({
+            id: t.pageId as string,
+            label: t.name,
+          })),
+        ]}
         actions={paletteActions}
         isDarkMode={isDarkMode}
         cartCount={itemCount}

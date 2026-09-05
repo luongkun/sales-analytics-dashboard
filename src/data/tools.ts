@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import { Headset, type LucideIcon } from 'lucide-react';
 
 /**
  * Một công cụ trong nhóm "Công cụ" ở cột bên trái (sidebar).
@@ -16,11 +16,21 @@ export interface ToolItem {
   icon?: LucideIcon;
   /** Nhãn nổi bật góc phải, vd "Mới" / "Hot" (tùy chọn) */
   badge?: string;
+  /** Trang sẽ điều hướng tới khi bấm (tùy chọn) */
+  pageId?: string;
 }
 
 /**
- * Danh sách công cụ — HIỆN ĐANG TRỐNG.
- * User sẽ upload nội dung công cụ sau; UI sidebar đang hiển thị
- * trạng thái chờ "Chưa có công cụ" cho tới khi mảng này có phần tử.
+ * Danh sách công cụ trong sidebar.
+ * Bấm vào công cụ → điều hướng tới pageId tương ứng.
  */
-export const TOOLS: ToolItem[] = [];
+export const TOOLS: ToolItem[] = [
+  {
+    id: 'support',
+    name: 'Hỗ trợ',
+    description: 'Thông tin liên hệ & giải đáp thắc mắc',
+    icon: Headset,
+    badge: 'Mới',
+    pageId: 'support',
+  },
+];

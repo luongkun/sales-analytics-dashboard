@@ -10,6 +10,7 @@ import {
   BarChart3,
   Rocket,
   ShieldCheck,
+  Headset,
   Sun,
   Moon,
   LogOut,
@@ -73,6 +74,7 @@ const PAGE_ICONS: Record<string, LucideIcon> = {
   reports: TrendingUp,
   upgrades: Rocket,
   admin: ShieldCheck,
+  support: Headset,
 };
 
 const MAX_PER_GROUP = 5;
@@ -110,7 +112,7 @@ export default function CommandPalette({
       icon: PAGE_ICONS[p.id] || LayoutDashboard,
       iconClass: 'text-blue-500',
       title: p.label,
-      keywords: normalize(`${p.label} ${p.id} page ${p.id === 'admin' ? 'quan tri user' : ''}`),
+      keywords: normalize(`${p.label} ${p.id} page ${p.id === 'admin' ? 'quan tri user' : ''} ${p.id === 'support' ? 'ho tro lien he contact cong cu tool' : ''}`),
       onSelect: () => onNavigate(p.id),
     }));
 

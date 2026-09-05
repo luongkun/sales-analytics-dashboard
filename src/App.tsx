@@ -25,6 +25,7 @@ import UpgradesPage from './pages/UpgradesPage';
 import ProfilePage from './pages/ProfilePage';
 import TopUpPage from './pages/TopUpPage';
 import AdminPage from './pages/AdminPage';
+import SupportPage from './pages/SupportPage';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -173,7 +174,7 @@ function App() {
 
 function AppShell() {
   const { user, loading } = useAuth();
-  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin'>('overview');
+  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'myorders' | 'upgrades' | 'profile' | 'topup' | 'admin' | 'support'>('overview');
 
   const renderPage = () => {
     switch (activePage) {
@@ -206,6 +207,8 @@ function AppShell() {
         return <TopUpPage />;
       case 'admin':
         return <AdminPage />;
+      case 'support':
+        return <SupportPage />;
       default:
         return <OverviewPage />;
     }
