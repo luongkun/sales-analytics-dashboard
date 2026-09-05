@@ -31,6 +31,7 @@ db.exec(`
     email TEXT,
     items TEXT,
     total INTEGER,
+    status TEXT DEFAULT 'Hoàn thành',
     timestamp INTEGER,
     FOREIGN KEY (email) REFERENCES users(email)
   );
@@ -46,6 +47,15 @@ db.exec(`
   );
 `);
 
+// ----- Migration nhẹ (idempotent): thêm cột mới cho DB cũ -----
+function ensureColumn(table, column, ddl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+}
+ensureColumn('users', 'region', 'region TEXT');
+ensureColumn('users', 'source', 'source TEXT');
+ensureColumn('orders', 'status', "status TEXT DEFAULT 'Hoàn thành'");
+
 export function getUser(email) {
   const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
   return stmt.get(email);
@@ -58,7 +68,7 @@ export function getUsers() {
 
 export function createUser(user) {
   const stmt = db.prepare(
-    'INSERT INTO users (email, name, password, role, balance, avatar, googleOnly, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO users (email, name, password, role, balance, avatar, googleOnly, region, source, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
   stmt.run(
     user.email,
@@ -68,12 +78,14 @@ export function createUser(user) {
     user.balance || 0,
     user.avatar || null,
     user.googleOnly ? 1 : 0,
+    user.region || null,
+    user.source || null,
     user.createdAt || Date.now()
   );
 }
 
 export function updateUser(email, fields) {
-  const allowed = ['name', 'password', 'role', 'balance', 'avatar', 'googleOnly'];
+  const allowed = ['name', 'password', 'role', 'balance', 'avatar', 'googleOnly', 'region', 'source'];
   const setClause = allowed
     .filter((f) => f in fields)
     .map((f) => `${f} = ?`)
@@ -112,6 +124,13 @@ export function createTransaction(tx) {
     'INSERT INTO transactions (id, email, type, amount, bonus, timestamp) VALUES (?, ?, ?, ?, ?, ?)'
   );
   stmt.run(tx.id, tx.email, tx.type, tx.amount, tx.bonus || 0, tx.timestamp);
+}
+
+export function getTotalTopup(email) {
+  const stmt = db.prepare(
+    "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE email = ? AND type = 'topup'"
+  );
+  return stmt.get(email).total;
 }
 
 export function getTransactions(email) {

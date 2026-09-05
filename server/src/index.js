@@ -6,6 +6,7 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import { io as ioClient } from 'socket.io-client';
 import {
   getUser,
   getUsers,
@@ -16,7 +17,10 @@ import {
   getOrders,
   createOrder,
   createTransaction,
+  getTotalTopup,
 } from './db.js';
+import { getAnalytics, getDailyRevenue } from './analytics.js';
+import { getAdminUsersPage, bulkDeleteUsers, bulkSetRole } from './admin.js';
 
 // ---------- Email ----------
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
@@ -49,8 +53,55 @@ function sendVerificationEmail(email, code) {
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ---------- Realtime broadcast ----------
+// Kết nối tới mini-service socket.io (port 3003) như một client "system"
+// (server-to-server, KHÔNG qua gateway) và phát event khi dữ liệu thay đổi.
+// Fire-and-forget: nếu realtime service lỗi, API vẫn hoạt động bình thường.
+const REALTIME_URL = process.env.REALTIME_URL || 'http://localhost:3003';
+const SYSTEM_EMAIL = 'system@realtime.internal';
+const systemToken = jwt.sign({ email: SYSTEM_EMAIL, role: 'system' }, JWT_SECRET);
+const rtSocket = ioClient(REALTIME_URL, {
+  auth: { token: systemToken },
+  path: '/',
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+});
+rtSocket.on('connect', () => console.log('[realtime] system channel đã kết nối'));
+rtSocket.on('disconnect', (reason) => console.log(`[realtime] system channel mất kết nối — ${reason}`));
+rtSocket.on('connect_error', (err) => console.warn('[realtime] connect_error:', err.message));
+
+function broadcast(room, event, payload) {
+  if (!rtSocket.connected) return; // offline: bỏ qua, event sau sẽ đồng bộ lại
+  rtSocket.emit('broadcast', { room: room || null, event, payload });
+}
+function broadcastUserUpdated(email, user, reason, actor) {
+  broadcast(`user:${String(email).toLowerCase()}`, 'user:updated', { email, user, reason, actor });
+  broadcast(null, 'users:changed', { type: 'updated', email, actor });
+}
+
+// ---------- VIP (theo tổng tiền đã nạp) ----------
+const VIP_TIERS = [
+  { level: 1, name: 'Đồng', min: 100000, bonusPct: 1 },
+  { level: 2, name: 'Bạc', min: 500000, bonusPct: 2 },
+  { level: 3, name: 'Vàng', min: 1000000, bonusPct: 3 },
+  { level: 4, name: 'Bạch Kim', min: 5000000, bonusPct: 5 },
+  { level: 5, name: 'Kim Cương', min: 10000000, bonusPct: 8 },
+];
+
+function vipTierOf(totalTopup) {
+  let tier = null;
+  for (const t of VIP_TIERS) {
+    if (totalTopup >= t.min) tier = t;
+  }
+  return tier;
+}
+
 function publicUser(user) {
   const purchases = getPurchases(user.email);
+  const totalTopup = getTotalTopup(user.email);
+  const tier = vipTierOf(totalTopup);
   return {
     name: user.name,
     email: user.email,
@@ -58,6 +109,8 @@ function publicUser(user) {
     balance: user.balance,
     purchasedUpgrades: purchases,
     avatar: user.avatar || undefined,
+    totalTopup,
+    vip: tier ? { level: tier.level, name: tier.name, bonusPct: tier.bonusPct } : null,
   };
 }
 
@@ -96,6 +149,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ----- Security headers -----
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+// ----- Rate limit đăng nhập (chống brute-force) -----
+// Tối đa 5 lần sai liên tiếp / email → khóa 5 phút; đăng nhập đúng sẽ reset.
+// (Giới hạn theo email vì mọi request đều đến từ proxy nội bộ 127.0.0.1)
+const loginFailures = new Map(); // email -> { count, lockUntil }
+const LOGIN_MAX_FAILS = 5;
+const LOGIN_LOCK_MS = 5 * 60 * 1000;
+
+function loginLockedFor(email) {
+  const rec = loginFailures.get(email);
+  if (!rec) return 0;
+  if (rec.lockUntil > Date.now()) return Math.ceil((rec.lockUntil - Date.now()) / 1000);
+  if (rec.lockUntil) loginFailures.delete(email); // hết thời gian khóa
+  return 0;
+}
+
+function recordLoginFailure(email) {
+  const rec = loginFailures.get(email) || { count: 0, lockUntil: 0 };
+  rec.count += 1;
+  if (rec.count >= LOGIN_MAX_FAILS) {
+    rec.lockUntil = Date.now() + LOGIN_LOCK_MS;
+    console.log(`[security] Tạm khóa đăng nhập ${email} trong ${LOGIN_LOCK_MS / 60000} phút (${rec.count} lần sai liên tiếp)`);
+  }
+  loginFailures.set(email, rec);
+}
+
 // ----- Auth -----
 app.get('/api/auth/me', auth, (req, res) => {
   const user = getUser(req.user.email);
@@ -123,6 +210,7 @@ app.post('/api/auth/register', async (req, res) => {
   });
   const token = jwt.sign({ email: trimmedEmail }, JWT_SECRET, { expiresIn: '7d' });
   const user = getUser(trimmedEmail);
+  broadcast(null, 'users:changed', { type: 'created', email: trimmedEmail, actor: trimmedEmail });
   res.json({ ok: true, token, user: publicUser(user) });
 });
 
@@ -130,11 +218,20 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   const trimmedEmail = (email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(trimmedEmail)) return res.status(400).json({ error: 'Email không hợp lệ' });
+  const lockedFor = loginLockedFor(trimmedEmail);
+  if (lockedFor > 0) {
+    res.setHeader('Retry-After', String(lockedFor));
+    return res.status(429).json({ error: `Đăng nhập tạm bị khóa do quá nhiều lần sai. Vui lòng thử lại sau ${lockedFor} giây.` });
+  }
   const user = getUser(trimmedEmail);
   if (!user) return res.status(401).json({ error: 'Tài khoản không tồn tại' });
   if (user.googleOnly) return res.status(400).json({ error: 'Tài khoản này đăng nhập bằng Google' });
   const ok = await bcrypt.compare(password || '', user.password);
-  if (!ok) return res.status(401).json({ error: 'Mật khẩu không đúng' });
+  if (!ok) {
+    recordLoginFailure(trimmedEmail);
+    return res.status(401).json({ error: 'Mật khẩu không đúng' });
+  }
+  loginFailures.delete(trimmedEmail); // đăng nhập đúng → xóa lịch sử sai
   const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ ok: true, token, user: publicUser(user) });
 });
@@ -206,6 +303,9 @@ app.post('/api/auth/change-email', auth, (req, res) => {
   if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
   pendingCodes.delete(req.user.email);
   updateUser(req.user.email, { email: trimmed });
+  // Các phiên đăng nhập khác của email cũ sẽ bị đăng xuất (token cũ hết hiệu lực)
+  broadcast(`user:${req.user.email}`, 'user:deleted', { email: req.user.email, reason: 'email-changed', actor: req.user.email });
+  broadcast(null, 'users:changed', { type: 'updated', email: trimmed, actor: req.user.email });
   const token = jwt.sign({ email: trimmed }, JWT_SECRET, { expiresIn: '7d' });
   const updated = getUser(trimmed);
   res.json({ ok: true, token, user: publicUser(updated) });
@@ -245,6 +345,7 @@ app.put('/api/profile', auth, (req, res) => {
   if (avatar !== undefined) updates.avatar = avatar;
   if (Object.keys(updates).length) updateUser(req.user.email, updates);
   const updated = getUser(req.user.email);
+  broadcastUserUpdated(req.user.email, publicUser(updated), 'profile', req.user.email);
   res.json({ ok: true, user: publicUser(updated) });
 });
 
@@ -274,6 +375,7 @@ app.post('/api/profile/migrate', auth, (req, res) => {
   }
 
   const updated = getUser(req.user.email);
+  broadcastUserUpdated(req.user.email, publicUser(updated), 'migrate', req.user.email);
   res.json({ ok: true, user: publicUser(updated) });
 });
 
@@ -282,9 +384,14 @@ app.post('/api/balance/topup', auth, (req, res) => {
   const { amount } = req.body || {};
   const value = Number(amount);
   if (!Number.isFinite(value) || value < 10000) return res.status(400).json({ error: 'Số tiền nạp tối thiểu 10.000đ' });
-  const bonus = value >= 1000000 ? Math.round(value * 0.05) : value >= 500000 ? Math.round(value * 0.02) : 0;
   const user = getUser(req.user.email);
   if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
+  // Thưởng theo mệnh giá (như cũ) + thưởng VIP theo hạng hiện tại
+  const baseBonus = value >= 1000000 ? Math.round(value * 0.05) : value >= 500000 ? Math.round(value * 0.02) : 0;
+  const prevTotal = getTotalTopup(user.email);
+  const prevTier = vipTierOf(prevTotal);
+  const vipBonus = prevTier ? Math.round((value * prevTier.bonusPct) / 100) : 0;
+  const bonus = baseBonus + vipBonus;
   const newBalance = user.balance + value + bonus;
   updateUser(req.user.email, { balance: newBalance });
   createTransaction({
@@ -296,12 +403,46 @@ app.post('/api/balance/topup', auth, (req, res) => {
     timestamp: Date.now(),
   });
   const updated = getUser(req.user.email);
-  res.json({ ok: true, balance: updated.balance, bonus, transaction: { id: `TX-${Date.now()}`, amount: value, bonus } });
+  const newTotal = prevTotal + value;
+  const newTier = vipTierOf(newTotal);
+  const tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
+  broadcastUserUpdated(req.user.email, publicUser(updated), 'topup', req.user.email);
+  res.json({
+    ok: true,
+    balance: updated.balance,
+    bonus,
+    baseBonus,
+    vipBonus,
+    totalTopup: newTotal,
+    vip: newTier ? { level: newTier.level, name: newTier.name, bonusPct: newTier.bonusPct } : null,
+    tierUp: tierUp ? { level: tierUp.level, name: tierUp.name } : null,
+    transaction: { id: `TX-${Date.now()}`, amount: value, bonus },
+  });
 });
 
 // ----- Products -----
 app.get('/api/products', (req, res) => {
   res.json({ ok: true, products: [] });
+});
+
+// ----- Analytics (tổng hợp từ DB thật) -----
+app.get('/api/analytics', auth, (req, res) => {
+  try {
+    const data = getAnalytics();
+    res.json(data);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Không thể tính toán dữ liệu phân tích' });
+  }
+});
+
+app.get('/api/analytics/daily', auth, (req, res) => {
+  try {
+    res.json(getDailyRevenue(req.query.month));
+  } catch (err) {
+    console.error('Analytics daily error:', err);
+    res.status(500).json({ error: 'Không thể tính doanh thu theo ngày' });
+  }
 });
 
 // ----- Orders -----
@@ -321,6 +462,9 @@ app.post('/api/orders', auth, (req, res) => {
   };
   createOrder(order);
   const updated = getUser(req.user.email);
+  broadcast(`user:${user.email}`, 'order:created', { email: user.email, order, actor: user.email });
+  broadcast(null, 'analytics:changed', { reason: 'order:created', email: user.email });
+  broadcastUserUpdated(req.user.email, publicUser(updated), 'order', req.user.email);
   res.json({ ok: true, order, balance: updated.balance });
 });
 
@@ -348,18 +492,64 @@ app.post('/api/upgrades/purchase', auth, (req, res) => {
   });
   const updated = getUser(req.user.email);
   const newPurchases = getPurchases(user.email);
+  broadcastUserUpdated(req.user.email, publicUser(updated), 'upgrade', req.user.email);
   res.json({ ok: true, balance: updated.balance, purchasedUpgrades: newPurchases });
 });
 
 // ----- Admin -----
-app.get('/api/admin/users', auth, async (req, res) => {
+app.get('/api/admin/users', auth, (req, res) => {
   const user = getUser(req.user.email);
   if (!user || user.role !== 'admin') {
     return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
   }
-  const { getAllUsersWithData } = await import('./admin.js');
-  const users = getAllUsersWithData();
-  res.json({ ok: true, users });
+  const { page, pageSize, q, role, sort } = req.query;
+  const result = getAdminUsersPage({
+    page: Number(page) || 1,
+    pageSize: Number(pageSize) || 10,
+    q: String(q || ''),
+    role: String(role || 'all'),
+    sort: String(sort || 'newest'),
+  });
+  res.json({ ok: true, ...result });
+});
+
+// Hành động hàng loạt: xóa nhiều user hoặc đổi vai trò nhiều user
+app.post('/api/admin/users/bulk', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') {
+    return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
+  }
+  const { action, emails, role } = req.body || {};
+  if (!Array.isArray(emails) || emails.length === 0) {
+    return res.status(400).json({ error: 'Chưa chọn người dùng nào' });
+  }
+  if (emails.length > 200) {
+    return res.status(400).json({ error: 'Tối đa 200 tài khoản mỗi lần' });
+  }
+  if (action === 'delete') {
+    const { deleted, skipped } = bulkDeleteUsers(emails, req.user.email);
+    for (const email of deleted) {
+      broadcast(`user:${email}`, 'user:deleted', { email, reason: 'deleted', actor: req.user.email });
+    }
+    broadcast(null, 'users:changed', { type: 'bulk-delete', count: deleted.length, actor: req.user.email });
+    broadcast(null, 'analytics:changed', { reason: 'bulk-delete', count: deleted.length });
+    return res.json({ ok: true, affected: deleted.length, deleted, skipped });
+  }
+  if (action === 'role') {
+    if (role !== 'admin' && role !== 'member') {
+      return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+    }
+    const { updated, skipped } = bulkSetRole(emails, role, req.user.email);
+    for (const email of updated) {
+      const u = getUser(email);
+      if (u) {
+        broadcast(`user:${email}`, 'user:updated', { email, user: publicUser(u), reason: 'admin-bulk-role', actor: req.user.email });
+      }
+    }
+    broadcast(null, 'users:changed', { type: 'bulk-role', count: updated.length, actor: req.user.email });
+    return res.json({ ok: true, affected: updated.length, updated, skipped });
+  }
+  return res.status(400).json({ error: 'Hành động không hợp lệ' });
 });
 
 app.put('/api/admin/users/:email', auth, async (req, res) => {
@@ -379,7 +569,8 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
   if (role && (role === 'admin' || role === 'member')) updates.role = role;
   if (Object.keys(updates).length) updateUser(email, updates);
   const updated = getUser(email);
-  res.json({ ok: true, user: updated });
+  broadcastUserUpdated(email, publicUser(updated), 'admin-edit', req.user.email);
+  res.json({ ok: true, user: publicUser(updated) });
 });
 
 app.delete('/api/admin/users/:email', auth, async (req, res) => {
@@ -403,6 +594,8 @@ app.delete('/api/admin/users/:email', auth, async (req, res) => {
     conn.prepare('DELETE FROM transactions WHERE email = ?').run(email);
     conn.prepare('DELETE FROM users WHERE email = ?').run(email);
     conn.exec('COMMIT;');
+    broadcast(`user:${email}`, 'user:deleted', { email, reason: 'deleted', actor: req.user.email });
+    broadcast(null, 'users:changed', { type: 'deleted', email, actor: req.user.email });
     res.json({ ok: true });
   } catch (err) {
     conn.exec('ROLLBACK;');
