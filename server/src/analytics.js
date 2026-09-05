@@ -204,11 +204,14 @@ export function getAnalytics() {
     try { items = JSON.parse(r.items || '[]'); } catch { /* ignore */ }
     const first = items[0];
     const extra = items.length > 1 ? ` +${items.length - 1}` : '';
+    // tổng số lượng mua của cả đơn (mặc định mỗi item 1 nếu thiếu quantity)
+    const quantity = items.reduce((s, it) => s + (Number(it.quantity) > 0 ? Number(it.quantity) : 1), 0);
     return {
       id: r.id,
       customer: r.name || r.email,
       product: (first ? first.name : '—') + extra,
       amount: r.total,
+      quantity,
       date: fmtDate(r.timestamp),
       status: r.status || 'Hoàn thành',
     };

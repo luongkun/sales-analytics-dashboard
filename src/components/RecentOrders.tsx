@@ -35,6 +35,7 @@ const RecentOrders = ({ data }: RecentOrdersProps) => {
               <th className="px-4 py-3 font-medium">Mã ĐH</th>
               <th className="px-4 py-3 font-medium">Khách Hàng</th>
               <th className="px-4 py-3 font-medium">Sản Phẩm</th>
+              <th className="px-4 py-3 font-medium text-center">Số Lượng</th>
               <th className="px-4 py-3 font-medium text-right">Tổng Tiền</th>
               <th className="px-4 py-3 font-medium">Ngày Đặt</th>
               <th className="px-4 py-3 font-medium text-center">Trạng Thái</th>
@@ -46,6 +47,21 @@ const RecentOrders = ({ data }: RecentOrdersProps) => {
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{order.id}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{order.customer}</td>
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{order.product}</td>
+                <td className="px-4 py-3 text-center">
+                  {order.quantity > 0 ? (
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        order.quantity > 1
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      ×{order.quantity}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-500">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
                   {formatCurrency(order.amount)}
                 </td>
