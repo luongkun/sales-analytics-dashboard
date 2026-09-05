@@ -127,8 +127,9 @@ export function createTransaction(tx) {
 }
 
 export function getTotalTopup(email) {
+  // 'admin_topup' = admin cộng tiền tay — cũng tính vào tổng nạp (VIP)
   const stmt = db.prepare(
-    "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE email = ? AND type = 'topup'"
+    "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE email = ? AND type IN ('topup', 'admin_topup')"
   );
   return stmt.get(email).total;
 }

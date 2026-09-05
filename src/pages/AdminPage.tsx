@@ -21,11 +21,14 @@ import {
   Wallet,
   Plus,
   Minus,
+  Crown,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatNumber } from '../data/salesData';
+import { getVipInfo } from '../utils/vip';
 import AnimatedSection from '../components/AnimatedSection';
 import { onRealtime, type UsersChangedPayload } from '../realtime/client';
 
@@ -41,6 +44,8 @@ interface UserData {
   purchases: number;
   orderCount: number;
   transactions: number;
+  /** tổng tiền đã nạp (nạp thật + admin cộng tay) — quyết định hạng VIP */
+  totalTopup: number;
 }
 
 interface UsersPageResponse {
@@ -118,6 +123,18 @@ export default function AdminPage() {
   const adjustValue = parseInt(adjustAmount, 10) || 0;
   const adjustValid = adjustValue > 0 && (adjustMode === 'add' || adjustValue <= (editingUser?.balance ?? 0));
   const previewBalance = editingUser ? Math.max(0, editingUser.balance + (adjustMode === 'add' ? adjustValue : -adjustValue)) : 0;
+
+  // Xem trước ảnh hưởng VIP: cộng tiền tính vào tổng nạp, trừ tiền không đổi
+  const vipNow = editingUser ? getVipInfo(editingUser.totalTopup) : null;
+  const vipAfter = editingUser
+    ? getVipInfo(adjustMode === 'add' && adjustValue > 0 ? editingUser.totalTopup + adjustValue : editingUser.totalTopup)
+    : null;
+  const vipUpPreview =
+    adjustMode === 'add' && adjustValue > 0 && adjustValid && vipNow && vipAfter
+      ? (vipAfter.tier?.level ?? 0) > (vipNow.tier?.level ?? 0)
+        ? vipAfter.tier
+        : null
+      : null;
 
   const ADJUST_PRESETS = [50_000, 100_000, 500_000, 1_000_000];
 
@@ -268,26 +285,51 @@ export default function AdminPage() {
     setAdjustAmount('');
   };
 
-  // Cộng/trừ dần vào số dư hiện tại (nhập số tiền rồi bấm áp dụng)
+  // Cộng/trừ dần vào số dư hiện tại (nhập số tiền rồi bấm áp dụng).
+  // Cộng tiền được ghi thành giao dịch 'admin_topup' → tính vào tổng nạp ⇒ VIP tăng hạng.
   const handleApplyAdjust = async () => {
     if (!editingUser || !adjustValid || adjusting) return;
     const delta = adjustMode === 'add' ? adjustValue : -adjustValue;
     setAdjusting(true);
     try {
-      const res = await api<{ ok: boolean; user: { balance: number; name: string }; adjust?: { delta: number; newBalance: number } }>(
-        '/admin/users/' + encodeURIComponent(editingUser.email),
-        { method: 'PUT', body: { balanceAdjust: delta } }
-      );
+      const res = await api<{
+        ok: boolean;
+        user: {
+          balance: number;
+          name: string;
+          totalTopup?: number;
+          vip?: { level: number; name: string; bonusPct: number } | null;
+        };
+        adjust?: { delta: number; newBalance: number };
+        tierUp?: { level: number; name: string; bonusPct: number };
+      }>('/admin/users/' + encodeURIComponent(editingUser.email), {
+        method: 'PUT',
+        body: { balanceAdjust: delta },
+      });
       const newBalance = res.user?.balance ?? res.adjust?.newBalance ?? editingUser.balance;
-      setEditingUser((prev) => (prev ? { ...prev, balance: newBalance } : prev));
+      const newTotal = res.user?.totalTopup ?? editingUser.totalTopup;
+      const vipInfo = res.user?.vip;
+      setEditingUser((prev) => (prev ? { ...prev, balance: newBalance, totalTopup: newTotal } : prev));
       showToast({
         type: 'success',
         title: delta > 0
           ? `Đã cộng ${formatNumber(delta)}đ vào số dư`
           : `Đã trừ ${formatNumber(-delta)}đ khỏi số dư`,
-        message: `Số dư mới của ${editingUser.name}: ${formatNumber(newBalance)}đ`,
+        message: delta > 0
+          ? `Số dư mới: ${formatNumber(newBalance)}đ · Tổng nạp: ${formatNumber(newTotal)}đ${vipInfo ? ` · VIP ${vipInfo.level} ${vipInfo.name}` : ''}`
+          : `Số dư mới: ${formatNumber(newBalance)}đ · Tổng nạp & VIP không đổi`,
         duration: 4000,
       });
+      if (res.tierUp) {
+        setTimeout(() => {
+          showToast({
+            type: 'success',
+            title: `👑 Lên VIP ${res.tierUp!.level} · ${res.tierUp!.name}`,
+            message: `${editingUser.name} đã mở khóa hạng mới — thưởng nạp +${res.tierUp!.bonusPct}%`,
+            duration: 6000,
+          });
+        }, 800);
+      }
       setAdjustAmount('');
       fetchUsers();
       if (editingUser.email === user?.email) {
@@ -863,6 +905,47 @@ export default function AdminPage() {
                     </p>
                   )}
 
+                  {/* Ảnh hưởng VIP: cộng tiền tính vào tổng nạp, trừ tiền không đổi */}
+                  {adjustMode === 'add' ? (
+                    adjustValue > 0 && adjustValid && (
+                      <div
+                        className={`rounded-lg border px-3 py-2.5 ${
+                          vipUpPreview ? vipUpPreview.soft : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          <span className="flex items-center gap-1 font-medium whitespace-nowrap">
+                            <Crown className={`w-3.5 h-3.5 ${vipNow?.tier?.crown ?? 'text-gray-400'}`} />
+                            Tổng nạp VIP
+                          </span>
+                          <span className="truncate">
+                            {formatNumber(editingUser.totalTopup)}đ{' '}
+                            <span className="text-emerald-600 dark:text-emerald-400">+ {formatNumber(adjustValue)}đ</span>{' '}
+                            = <span className="font-bold text-gray-700 dark:text-gray-200">{formatNumber(editingUser.totalTopup + adjustValue)}đ</span>
+                          </span>
+                        </div>
+                        {vipUpPreview ? (
+                          <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${vipUpPreview.text}`}>
+                            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+                            Lên VIP {vipUpPreview.level} · {vipUpPreview.name} — thưởng nạp +{vipUpPreview.bonusPct}%
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
+                            {vipAfter?.nextTier
+                              ? `Còn ${formatNumber(vipAfter.remaining)}đ nữa lên VIP ${vipAfter.nextTier.level} · ${vipAfter.nextTier.name}`
+                              : 'Đã đạt hạng cao nhất — VIP 4 · Kim Cương'}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    adjustValue > 0 && adjustValid && (
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 px-1">
+                        Trừ tiền chỉ giảm số dư — tổng nạp &amp; hạng VIP không thay đổi
+                      </p>
+                    )
+                  )}
+
                   {/* Nút áp dụng ngay */}
                   <button
                     type="button"
@@ -888,7 +971,9 @@ export default function AdminPage() {
                         : 'Nhập số tiền để áp dụng'}
                   </button>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center">
-                    Số tiền sẽ {adjustMode === 'add' ? 'cộng dồn' : 'trừ'} vào số dư hiện tại — không thay thế giá trị cũ
+                    {adjustMode === 'add'
+                      ? 'Cộng dồn vào số dư và tính vào tổng nạp VIP — không thay thế giá trị cũ'
+                      : 'Chỉ trừ khỏi số dư hiện tại — tổng nạp VIP không đổi'}
                   </p>
                 </div>
               </div>

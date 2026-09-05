@@ -578,16 +578,26 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
   }
   if (role && (role === 'admin' || role === 'member')) updates.role = role;
   if (Object.keys(updates).length) updateUser(email, updates);
-  // Lịch sử điều chỉnh thủ công (không tính vào totalTopup/VIP)
+  // Giao dịch điều chỉnh thủ công:
+  // - CỘNG tiền: type 'admin_topup' → TÍNH vào tổng nạp (totalTopup) ⇒ VIP tăng hạng như nạp thật
+  // - TRỪ tiền: type 'admin_adjust' → chỉ trừ số dư, không ảnh hưởng tổng nạp/VIP
+  let tierUp = null;
   if (adjustDelta !== null) {
+    const isAdd = adjustDelta > 0;
+    const prevTotal = getTotalTopup(email);
     createTransaction({
       id: `tx_admin_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       email,
-      type: 'admin_adjust',
+      type: isAdd ? 'admin_topup' : 'admin_adjust',
       amount: adjustDelta,
       bonus: 0,
       timestamp: Date.now(),
     });
+    if (isAdd) {
+      const prevTier = vipTierOf(prevTotal);
+      const newTier = vipTierOf(prevTotal + adjustDelta);
+      tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
+    }
   }
   const updated = getUser(email);
   broadcastUserUpdated(email, publicUser(updated), 'admin-edit', req.user.email);
@@ -595,6 +605,7 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
     ok: true,
     user: publicUser(updated),
     ...(adjustDelta !== null ? { adjust: { delta: adjustDelta, newBalance: updated.balance } } : {}),
+    ...(tierUp ? { tierUp: { level: tierUp.level, name: tierUp.name, bonusPct: tierUp.bonusPct } } : {}),
   });
 });
 
