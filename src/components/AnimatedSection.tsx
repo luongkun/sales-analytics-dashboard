@@ -41,8 +41,9 @@ const AnimatedSection = ({ children, delay = 0, className, style, ...rest }: Ani
       style={{
         ...style,
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-        transition: `opacity 600ms ease-out ${delay}ms, transform 600ms ease-out ${delay}ms`,
+        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(36px) scale(0.97)',
+        filter: isVisible ? 'blur(0)' : 'blur(6px)',
+        transition: `opacity 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, transform 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms, filter 700ms cubic-bezier(0.22, 1, 0.36, 1) ${delay}ms`,
       }}
       {...rest}
     >

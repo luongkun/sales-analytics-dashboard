@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, LucideIcon } from 'lucide-react';
 import { formatCurrency, formatNumber } from '../data/salesData';
+import { useCountUp } from '../hooks/useCountUp';
 
 type FormatType = 'currency' | 'percent' | 'number';
 type ColorType = 'blue' | 'purple' | 'green' | 'orange';
@@ -13,17 +14,38 @@ interface StatCardProps {
   color?: ColorType;
 }
 
-const colorMap: Record<ColorType, { bg: string; icon: string; ring: string }> = {
-  blue: { bg: 'bg-blue-50 dark:bg-blue-900/50', icon: 'text-blue-600 dark:text-blue-400', ring: 'ring-blue-100 dark:ring-blue-900/30' },
-  purple: { bg: 'bg-purple-50 dark:bg-purple-900/50', icon: 'text-purple-600 dark:text-purple-400', ring: 'ring-purple-100 dark:ring-purple-900/30' },
-  green: { bg: 'bg-emerald-50 dark:bg-emerald-900/50', icon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-100 dark:ring-emerald-900/30' },
-  orange: { bg: 'bg-amber-50 dark:bg-amber-900/50', icon: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-100 dark:ring-amber-900/30' },
+const colorMap: Record<ColorType, { bg: string; icon: string; ring: string; bar: string }> = {
+  blue: {
+    bg: 'bg-gradient-to-br from-blue-500 to-indigo-600',
+    icon: 'text-white',
+    ring: 'shadow-lg shadow-blue-500/30',
+    bar: 'from-blue-500 to-indigo-500',
+  },
+  purple: {
+    bg: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
+    icon: 'text-white',
+    ring: 'shadow-lg shadow-purple-500/30',
+    bar: 'from-purple-500 to-fuchsia-500',
+  },
+  green: {
+    bg: 'bg-gradient-to-br from-emerald-500 to-teal-600',
+    icon: 'text-white',
+    ring: 'shadow-lg shadow-emerald-500/30',
+    bar: 'from-emerald-500 to-teal-500',
+  },
+  orange: {
+    bg: 'bg-gradient-to-br from-amber-500 to-orange-600',
+    icon: 'text-white',
+    ring: 'shadow-lg shadow-amber-500/30',
+    bar: 'from-amber-500 to-orange-500',
+  },
 };
 
 export default function StatCard({ title, value, previousValue, icon: Icon, format = 'number', color = 'blue' }: StatCardProps) {
-  const formattedValue = format === 'currency' ? formatCurrency(value) :
-                          format === 'percent' ? `${value}%` :
-                          formatNumber(value);
+  const animatedValue = useCountUp(value);
+  const formattedValue = format === 'currency' ? formatCurrency(animatedValue) :
+                          format === 'percent' ? `${animatedValue.toFixed(1)}%` :
+                          formatNumber(Math.round(animatedValue));
 
   const changeValue = previousValue ? (((value - previousValue) / previousValue) * 100) : 0;
   const change = changeValue.toFixed(1);
@@ -32,27 +54,32 @@ export default function StatCard({ title, value, previousValue, icon: Icon, form
   const c = colorMap[color] || colorMap.blue;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
+    <div className="card-lift bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 relative overflow-hidden group">
+      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${c.bar}`} />
+      <div className="flex items-start justify-between relative">
         <div className="flex-1">
           <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{formattedValue}</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-1.5 tracking-tight">{formattedValue}</p>
           {previousValue && (
-            <div className="flex items-center gap-1 mt-2">
-              {isPositive ? (
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-500" />
-              )}
-              <span className={`text-sm font-medium ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            <div className="flex items-center gap-1 mt-2.5">
+              <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold ${
+                isPositive
+                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
+                  : 'bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+              }`}>
+                {isPositive ? (
+                  <TrendingUp className="w-3.5 h-3.5" />
+                ) : (
+                  <TrendingDown className="w-3.5 h-3.5" />
+                )}
                 {isPositive ? '+' : ''}{change}%
               </span>
-              <span className="text-xs text-gray-400 ml-1">so với kỳ trước</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">so với kỳ trước</span>
             </div>
           )}
         </div>
-        <div className={`w-11 h-11 ${c.bg} rounded-xl flex items-center justify-center ring-4 ${c.ring}`}>
-          <Icon className={`w-5 h-5 ${c.icon}`} />
+        <div className={`w-12 h-12 ${c.bg} ${c.ring} rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+          <Icon className={`w-6 h-6 ${c.icon}`} />
         </div>
       </div>
     </div>

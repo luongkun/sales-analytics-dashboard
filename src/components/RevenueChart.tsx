@@ -118,7 +118,7 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
   const dataKey = drilledMonth ? 'day' : 'month';
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+    <div className="card-lift bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-base font-bold text-gray-800 dark:text-white">
@@ -140,7 +140,7 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
               Quay lại tháng
             </button>
           )}
-          <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+          <span className="w-3 h-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full shadow-sm shadow-blue-500/50"></span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Doanh thu (VNĐ)</span>
         </div>
       </div>
@@ -161,11 +161,19 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
         >
           <defs>
             <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+              <stop offset="60%" stopColor="#6366f1" stopOpacity={0.12} />
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
             </linearGradient>
+            <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} vertical={false} />
           <XAxis
             dataKey={dataKey}
             axisLine={false}
@@ -179,18 +187,19 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
             tickFormatter={(value) => `${(value / 1000000).toFixed(0)}tr`}
           />
           <Tooltip
+            cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
             content={({ active, payload, label }) => {
               if (active && payload && payload.length) {
                 const item = payload[0].payload as Partial<DailyRevenue>;
                 return (
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{drilledMonth ? 'Ngày' : 'Tháng'} {label}</p>
-                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
-                      Doanh thu: {formatCurrency(Number(payload[0].value))}
+                  <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-blue-200/60 dark:border-blue-700/60 rounded-xl shadow-xl shadow-blue-500/10 p-3.5 ring-1 ring-black/5">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{drilledMonth ? 'Ngày' : 'Tháng'} {label}</p>
+                    <p className="text-base font-bold text-gradient mt-1">
+                      {formatCurrency(Number(payload[0].value))}
                     </p>
                     {item.orders !== undefined && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Đơn hàng: {item.orders} | Khách hàng: {item.customers}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700">
+                        🛒 {item.orders} đơn · 👤 {item.customers} khách
                       </p>
                     )}
                   </div>
@@ -202,17 +211,24 @@ export default function RevenueChart({ data, onDrillDown }: RevenueChartProps) {
           <Area
             type="monotone"
             dataKey="revenue"
-            stroke="#3b82f6"
-            strokeWidth={2.5}
+            stroke="url(#lineStroke)"
+            strokeWidth={3}
             fill="url(#revenueGradient)"
+            filter="url(#lineGlow)"
             dot={{
               r: drilledMonth ? 3 : 4,
               fill: '#3b82f6',
               strokeWidth: 2,
               stroke: '#fff',
             }}
-            activeDot={{ r: drilledMonth ? 4 : 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+            activeDot={{ r: drilledMonth ? 4 : 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
           />
+          <defs>
+            <linearGradient id="lineStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#8b5cf6" />
+            </linearGradient>
+          </defs>
         </AreaChart>
       </ResponsiveContainer>
 

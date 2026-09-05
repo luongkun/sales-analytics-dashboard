@@ -133,6 +133,26 @@ const translations: Record<Locale, Record<string, string>> = {
     'toast.copy_success': 'Đã sao chép',
     'toast.save_success': 'Đã lưu',
     'toast.delete_success': 'Đã xóa',
+
+    // Notifications
+    'notifications.title': 'Thông báo',
+    'notifications.unread_count': '{count} mới',
+    'notifications.empty': 'Không có thông báo nào',
+    'notifications.mark_all_read': 'Đánh dấu đã đọc',
+    'notifications.clear_all': 'Xóa tất cả',
+    'notifications.remove': 'Xóa thông báo',
+    'notif.revenue_record.title': '🎉 Doanh thu tháng {revenue} lập kỷ lục mới!',
+    'notif.revenue_record.message': 'Doanh thu tháng này tăng {percent}% so với tháng trước.',
+    'notif.order_shipping.title': 'Đơn hàng {id} đang trên đường giao',
+    'notif.order_shipping.message': 'Sản phẩm: {product}. Dự kiến giao trong hôm nay.',
+    'notif.target_progress.title': 'Đã hoàn thành {percent}% mục tiêu quý',
+    'notif.target_progress.message': 'Bạn đang đi trước kế hoạch. Tiếp tục phát huy nhé!',
+    'notif.order_cancelled.title': 'Đơn hàng {id} đã bị hủy',
+    'notif.order_cancelled.message': 'Khách hàng: {customer}. Vui lòng kiểm tra và liên hệ xác nhận.',
+    'notif.return_rate.title': 'Cảnh báo tỷ lệ hoàn trả',
+    'notif.return_rate.message': '{count} đơn hàng bị trả lại ({percent}%) trong tuần này.',
+    'notif.monthly_report.title': 'Báo cáo tháng đã sẵn sàng',
+    'notif.monthly_report.message': 'Báo cáo phân tích doanh thu tháng 12 đã được tạo. Xem tại trang Báo cáo.',
   },
   en: {
     // General
@@ -258,6 +278,26 @@ const translations: Record<Locale, Record<string, string>> = {
     'toast.copy_success': 'Copied to clipboard',
     'toast.save_success': 'Saved successfully',
     'toast.delete_success': 'Deleted successfully',
+
+    // Notifications
+    'notifications.title': 'Notifications',
+    'notifications.unread_count': '{count} new',
+    'notifications.empty': 'No notifications yet',
+    'notifications.mark_all_read': 'Mark all as read',
+    'notifications.clear_all': 'Clear all',
+    'notifications.remove': 'Remove notification',
+    'notif.revenue_record.title': '🎉 New revenue record: {revenue}!',
+    'notif.revenue_record.message': 'Revenue is up {percent}% compared to last month.',
+    'notif.order_shipping.title': 'Order {id} is out for delivery',
+    'notif.order_shipping.message': 'Product: {product}. Expected delivery today.',
+    'notif.target_progress.title': '{percent}% of quarterly target achieved',
+    'notif.target_progress.message': 'You are ahead of schedule. Keep it up!',
+    'notif.order_cancelled.title': 'Order {id} has been cancelled',
+    'notif.order_cancelled.message': 'Customer: {customer}. Please verify and follow up.',
+    'notif.return_rate.title': 'Return rate warning',
+    'notif.return_rate.message': '{count} orders returned ({percent}%) this week.',
+    'notif.monthly_report.title': 'Monthly report is ready',
+    'notif.monthly_report.message': 'The December revenue analytics report has been generated. See the Reports page.',
   },
 };
 

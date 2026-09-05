@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { useDateRange, DateRangeProvider } from '../context/DateRangeContext';
 import { useI18n } from '../context/I18nContext';
-import { DateRangePicker } from '../components/DateRangePicker';
+import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/NotificationBell';
+import Avatar from './Avatar';
 import {
   LayoutDashboard,
   BarChart3,
@@ -13,35 +14,238 @@ import {
   X,
   Sun,
   Moon,
-  LucideIcon,
   ChevronLeft,
   ChevronRight,
+  Package,
+  LogOut,
+  ChevronDown,
+  Wallet,
+  Rocket,
+  UserPen,
+  CirclePlus,
+  Check,
+  Languages,
 } from 'lucide-react';
-import { ReactNode } from 'react';
+import CartDrawer from './CartDrawer';
+import { useCart } from '../context/CartContext';
+import { formatNumber } from '../data/salesData';
 
-interface NavItem {
-  id: PageId;
-  icon: LucideIcon;
-  label: string;
+function LanguageSwitcher() {
+  const { locale, setLocale } = useI18n();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open]);
+
+  const languages: { value: 'vi' | 'en'; label: string; flag: string }[] = [
+    { value: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
+    { value: 'en', label: 'English', flag: '🇺🇸' },
+  ];
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`p-2 rounded-lg transition-colors ${
+          open
+            ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+        }`}
+        aria-label="Ngôn ngữ"
+        aria-expanded={open}
+      >
+        <Languages className="w-5 h-5" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in"
+          role="menu"
+        >
+          <div className="p-1.5">
+            {languages.map((lang) => {
+              const active = locale === lang.value;
+              return (
+                <button
+                  key={lang.value}
+                  onClick={() => {
+                    setLocale(lang.value);
+                    setOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                    active
+                      ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  role="menuitem"
+                >
+                  <span className="text-lg leading-none">{lang.flag}</span>
+                  <span className="flex-1 text-left">{lang.label}</span>
+                  {active && <Check className="w-4 h-4" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-const navItems: NavItem[] = [
-  { id: 'overview', icon: LayoutDashboard, label: 'Tổng quan' },
-  { id: 'revenue', icon: BarChart3, label: 'Doanh thu' },
-  { id: 'orders', icon: ShoppingCart, label: 'Đơn hàng' },
-  { id: 'customers', icon: Users, label: 'Khách hàng' },
-  { id: 'reports', icon: TrendingUp, label: 'Báo cáo' },
-];
+
+function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
+  const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open]);
+
+  if (!user) return null;
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 group"
+        aria-label="Tài khoản"
+        aria-expanded={open}
+      >
+        <Avatar user={user} size="sm" />
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in"
+          role="menu"
+        >
+          <div className="p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-400/10 dark:to-indigo-400/5 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <Avatar user={user} size="md" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{user.name}</p>
+                      {user.purchasedUpgrades?.includes('UP-01') && (
+                        <span
+                          className="pro-badge flex-shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full text-white shadow-md shadow-purple-500/40"
+                          style={{
+                            background: 'linear-gradient(135deg, #1a1a2e 0%, #4a1d96 50%, #7c3aed 100%)',
+                          }}
+                        >
+                          pro
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                  {user.role === 'admin' ? '⚡ Quản trị viên' : 'Thành viên'}
+                </span>
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-emerald-100 dark:border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/10 dark:to-teal-400/5 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Số dư</span>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatNumber(user.balance)}đ
+                  </span>
+                </div>
+              </div>
+              <div className="p-1.5">
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onNavigate('topup');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 font-semibold rounded-lg transition-colors"
+                  role="menuitem"
+                >
+                  <CirclePlus className="w-4 h-4" />
+                  Nạp số dư
+                </button>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onNavigate('profile');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"
+                  role="menuitem"
+                >
+                  <UserPen className="w-4 h-4" />
+                  Tùy chỉnh hồ sơ
+                </button>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+                  role="menuitem"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Đăng xuất
+                </button>
+              </div>
+            </div>
+          )}
+    </div>
+  );
+}
 
 const pageTitles: Record<string, string> = {
   overview: 'Dashboard Phân tích Doanh thu',
   revenue: 'Phân tích Doanh thu',
   orders: 'Quản lý Đơn hàng',
+  products: 'Sản phẩm & Gói dịch vụ',
+  checkout: 'Thanh toán',
   customers: 'Phân tích Khách hàng',
   reports: 'Báo cáo & KPI',
+  upgrades: 'Nâng cấp',
+  profile: 'Hồ sơ cá nhân',
+  topup: 'Nạp số dư',
+  admin: 'Quản trị người dùng',
 };
 
-type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports';
+type PageId = 'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'upgrades' | 'profile' | 'topup' | 'admin';
+
+interface NavItem {
+  id: PageId;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}
 
 interface LayoutProps {
   children: ReactNode;
@@ -53,8 +257,19 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
-  const { dateRange, setDateRange } = useDateRange();
-  const { locale, setLocale } = useI18n();
+  const { user } = useAuth();
+  const { itemCount, isCartOpen, openCart, closeCart } = useCart();
+  const isCheckout = activePage === 'checkout';
+
+  useEffect(() => {
+    if (!isCheckout) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onNavigate('products');
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCheckout]);
 
   const handleNavClick = (pageId: PageId) => {
     onNavigate(pageId);
@@ -63,9 +278,19 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
 
   const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
 
+  const navItems: NavItem[] = [
+    { id: 'overview', icon: LayoutDashboard, label: 'Tổng quan' },
+    { id: 'revenue', icon: BarChart3, label: 'Doanh thu' },
+    { id: 'orders', icon: ShoppingCart, label: 'Đơn hàng' },
+    { id: 'products', icon: Package, label: 'Sản phẩm' },
+    { id: 'customers', icon: Users, label: 'Khách hàng' },
+    { id: 'reports', icon: TrendingUp, label: 'Báo cáo' },
+    { id: 'upgrades', icon: Rocket, label: 'Nâng cấp' },
+    ...(user?.role === 'admin' ? [{ id: 'admin' as PageId, icon: Users, label: 'Quản trị' }] : []),
+  ];
+
   return (
-    <DateRangeProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="app-bg h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 flex overflow-hidden">
       <a href="#main-content" className="skip-link">
         Chuyển đến nội dung chính
       </a>
@@ -79,17 +304,20 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out transition-width duration-200 ${
+        className={`fixed lg:relative inset-y-0 left-0 z-50 flex-shrink-0 ${sidebarWidth} lg:h-[calc(100%-1.5rem)] lg:my-3 lg:ml-3 lg:rounded-3xl bg-white/95 lg:bg-white/60 dark:bg-gray-800/95 lg:dark:bg-gray-800/50 backdrop-blur-2xl border-r border-gray-200 dark:border-gray-700 lg:border lg:border-white/70 lg:dark:border-white/10 lg:shadow-2xl lg:shadow-indigo-500/10 dark:lg:shadow-black/40 transform transition-all duration-200 ease-in-out flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200/70 dark:border-gray-700/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/40">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             {!sidebarCollapsed && (
-              <span className="font-bold text-lg text-gray-800 dark:text-white truncate">Analytics</span>
+              <div>
+                <span className="font-bold text-lg text-gray-800 dark:text-white truncate leading-tight block">Analytics</span>
+                <span className="text-[10px] font-medium text-gradient leading-tight block">Sales Suite Pro</span>
+              </div>
             )}
           </div>
           <button
@@ -118,40 +346,35 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           )}
         </div>
 
-        <nav className="mt-6 px-3">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mb-1 ${
-                activePage === item.id
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
-              }`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-            </button>
-          ))}
-        </nav>
-
-        {!sidebarCollapsed && (
-          <div className="absolute bottom-6 left-3 right-3">
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white">
-              <p className="text-sm font-semibold">Nâng cấp Pro</p>
-              <p className="text-xs opacity-80 mt-1">Mở khóa tất cả tính năng phân tích nâng cao</p>
-              <button className="mt-3 w-full bg-white text-blue-600 text-xs font-semibold py-2 rounded-lg hover:bg-blue-50 transition-colors">
-                Nâng cấp ngay
+        <nav className="mt-6 px-3 space-y-1 overflow-y-auto flex-1">
+          {navItems.map((item) => {
+            const isActive = activePage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-400/15 dark:to-indigo-400/10 text-blue-700 dark:text-blue-300 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/60 dark:hover:text-white'
+                }`}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full" />
+                )}
+                <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
+                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
               </button>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </nav>
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative z-10 flex flex-col h-full">
         {/* Header */}
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 lg:px-8">
+        <header className="flex-shrink-0 z-30 pt-3 lg:pr-3">
+          <div className="h-16 mx-4 lg:ml-6 lg:mr-0 rounded-2xl bg-white/60 dark:bg-gray-800/50 backdrop-blur-2xl border border-white/70 dark:border-white/10 shadow-lg shadow-gray-200/50 dark:shadow-black/30 flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-4">
             <button
               className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -168,10 +391,21 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
           </div>
 
           <div className="flex items-center gap-3">
-            <DateRangePicker
-              onChange={(range) => setDateRange(range)}
-              initialRange={dateRange}
-            />
+            {!isCheckout && (
+              <button
+                onClick={openCart}
+                className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Giỏ hàng"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md shadow-indigo-500/40">
+                    {itemCount > 9 ? '9+' : itemCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <NotificationBell onNavigate={(page) => onNavigate(page as PageId)} />
             <button
               onClick={toggleTheme}
               className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -179,29 +413,25 @@ export default function Layout({ children, activePage, onNavigate }: LayoutProps
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as 'vi' | 'en')}
-              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Language"
-            >
-              <option value="vi">🇻🇳 Tiếng Việt</option>
-              <option value="en">🇺🇸 English</option>
-            </select>
-            <select className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Năm 2025</option>
-              <option>Năm 2024</option>
-            </select>
-            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">LK</span>
-            </div>
+            <LanguageSwitcher />
+            <UserMenu onNavigate={onNavigate} />
+          </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main id="main-content" className="p-4 lg:p-8">{children}</main>
+        <main id="main-content" className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div key={activePage} className="animate-fade-up">
+            {children}
+          </div>
+        </main>
       </div>
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={closeCart}
+        onCheckout={() => onNavigate('checkout')}
+      />
     </div>
-    </DateRangeProvider>
   );
 }

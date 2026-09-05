@@ -10,11 +10,19 @@ import OrderTrendChart from './components/OrderTrendChart';
 import RecentOrders from './components/RecentOrders';
 import AnimatedSection from './components/AnimatedSection';
 import ErrorBoundary from './components/ErrorBoundary';
-import DashboardCustomizer from './components/DashboardCustomizer';
 import RevenuePage from './pages/RevenuePage';
 import OrdersPage from './pages/OrdersPage';
 import CustomersPage from './pages/CustomersPage';
 import ReportsPage from './pages/ReportsPage';
+import ProductsPage from './pages/ProductsPage';
+import CheckoutPage from './pages/CheckoutPage';
+import LoginPage from './pages/LoginPage';
+import UpgradesPage from './pages/UpgradesPage';
+import ProfilePage from './pages/ProfilePage';
+import TopUpPage from './pages/TopUpPage';
+import AdminPage from './pages/AdminPage';
+import { CartProvider } from './context/CartContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   monthlyRevenue,
   categoryRevenue,
@@ -27,6 +35,7 @@ import {
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { I18nProvider } from './context/I18nContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 function OverviewPage() {
   return (
@@ -109,7 +118,22 @@ function OverviewPage() {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports'>('overview');
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <AppShell />
+          </AuthProvider>
+        </I18nProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
+  const { user, loading } = useAuth();
+  const [activePage, setActivePage] = useState<'overview' | 'revenue' | 'orders' | 'customers' | 'reports' | 'products' | 'checkout' | 'upgrades' | 'profile' | 'topup' | 'admin'>('overview');
 
   const renderPage = () => {
     switch (activePage) {
@@ -123,24 +147,50 @@ function App() {
         return <CustomersPage />;
       case 'reports':
         return <ReportsPage />;
+      case 'products':
+        return <ProductsPage />;
+      case 'checkout':
+        return (
+          <CheckoutPage
+            onBack={() => setActivePage('products')}
+            onNavigate={(page) => setActivePage(page)}
+          />
+        );
+      case 'upgrades':
+        return <UpgradesPage />;
+      case 'profile':
+        return <ProfilePage />;
+      case 'topup':
+        return <TopUpPage />;
+      case 'admin':
+        return <AdminPage />;
       default:
         return <OverviewPage />;
     }
   };
 
+  if (loading) {
+    return (
+      <div className="app-bg min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:to-gray-800">
+        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <I18nProvider>
-          <ErrorBoundary>
+    <CartProvider>
+      <NotificationProvider>
+        <ErrorBoundary>
             <Layout activePage={activePage} onNavigate={setActivePage}>
               {renderPage()}
-              <DashboardCustomizer />
             </Layout>
-          </ErrorBoundary>
-        </I18nProvider>
-      </ToastProvider>
-    </ThemeProvider>
+        </ErrorBoundary>
+      </NotificationProvider>
+    </CartProvider>
   );
 }
 

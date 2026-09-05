@@ -1,0 +1,22 @@
+﻿{
+    "users":  [
+                  {
+                      "name":  "LÆ°Æ¡ng Kun",
+                      "email":  "admin@luongkun.io",
+                      "password":  "$2b$10$Y0QfNTEIMc4bByrs6qudi.Euo2KZMDExSnld5VFMmA.NnO2JNGnUC",
+                      "role":  "admin",
+                      "balance":  250000000,
+                      "purchasedUpgrades":  [
+                                                "UP-01",
+                                                "UP-06"
+                                            ],
+                      "createdAt":  1788540962821
+                  }
+              ],
+    "orders":  [
+
+               ],
+    "transactions":  [
+
+                     ]
+}

@@ -6,6 +6,62 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* ============================================
+   PREMIUM DARK PALETTE — deep navy surfaces
+   Scoped to .dark: only affects dark mode
+   ============================================ */
+.dark {
+  --color-gray-950: #070a12;
+  --color-gray-900: #0b0f1a;
+  --color-gray-800: #111828;
+  --color-gray-700: #1b2438;
+  --color-gray-600: #2a3650;
+  --color-gray-500: #6b7691;
+  --color-gray-400: #8b94ab;
+  --color-gray-300: #aab2c5;
+  --color-gray-200: #2a3450;
+  --color-gray-100: #1a2334;
+  --color-gray-50: #0e1524;
+  --chart-grid: #232d45;
+  --tooltip-bg: rgba(17, 24, 40, 0.92);
+}
+
+:root {
+  --chart-grid: #e5e7eb;
+  --tooltip-bg: #ffffff;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.dark body {
+  background-color: var(--color-gray-950);
+}
+
+/* Subtle grid texture on dark bg */
+.dark .app-bg {
+  background-image:
+    linear-gradient(rgb(99 102 241 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(99 102 241 / 0.03) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Dark card glow — cards float above the deep bg */
+.dark .card-lift {
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset;
+}
+
+.dark .card-lift:hover {
+  box-shadow:
+    0 12px 32px -8px rgb(0 0 0 / 0.6),
+    0 0 24px -6px rgb(99 102 241 / 0.15);
+  border-color: rgb(99 102 241 / 0.4);
+}
+
 @keyframes wave {
   0% {
     background-position: -200% 0;
@@ -26,6 +82,17 @@
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-wave {
   animation: wave 1.5s linear infinite;
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -39,6 +106,276 @@
 
 .animate-slide-in {
   animation: slide-in 300ms ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 150ms ease-out;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+.pro-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+.pro-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  animation: shine 2.2s ease-in-out infinite;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+}
+
+/* Ambient background orbs */
+.app-bg {
+  position: relative;
+  min-height: 100vh;
+}
+
+.app-bg::before,
+.app-bg::after {
+  content: '';
+  position: fixed;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app-bg::before {
+  width: 500px;
+  height: 500px;
+  top: -150px;
+  right: -100px;
+  background: radial-gradient(circle, #60a5fa 0%, transparent 70%);
+  animation: float-slow 18s ease-in-out infinite;
+}
+
+.app-bg::after {
+  width: 400px;
+  height: 400px;
+  bottom: -100px;
+  left: -100px;
+  background: radial-gradient(circle, #a78bfa 0%, transparent 70%);
+  animation: float-slow 22s ease-in-out infinite reverse;
+}
+
+.dark .app-bg::before {
+  opacity: 0.15;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+}
+
+.dark .app-bg::after {
+  opacity: 0.15;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .text-gradient {
+  background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Card hover lift */
+.card-lift {
+  transition:
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 300ms;
+}
+
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 24px -8px rgb(0 0 0 / 0.12),
+    0 4px 8px -4px rgb(0 0 0 / 0.06);
+  border-color: #c7d2fe;
+}
+
+.dark .card-lift:hover {
+  box-shadow:
+    0 12px 24px -8px rgb(0 0 0 / 0.5),
+    0 0 0 1px rgb(99 102 241 / 0.2);
+  border-color: #4c51bf;
+}
+
+/* Shine effect for upgrade card */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.25),
+    transparent
+  );
+  animation: shine 3.5s ease-in-out infinite;
+}
+
+/* ============================================
+   MICRO INTERACTIONS
+   ============================================ */
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple > .ripple-dot {
+  position: absolute;
+  border-radius: 9999px;
+  transform: scale(0);
+  animation: ripple 600ms linear;
+  background-color: rgb(255 255 255 / 0.5);
+  pointer-events: none;
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+.animate-shake {
+  animation: shake 500ms ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(59 130 246 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(59 130 246 / 0);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Gradient scrollbar */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #4f46e5, #7c3aed);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  width: 6px;
+}
+
+/* ============================================
+   CHART DARK ADJUSTMENTS
+   ============================================ */
+.dark .recharts-cartesian-axis-tick text {
+  fill: #5b6580;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+
+.dark .stat-card-dark {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.005));
 }
 
 /* Accessibility improvements */
@@ -79,14 +416,22 @@
   }
 }
 
-/* Reduced motion support */
+/* Reduced motion: keep entrance & page transitions, only disable
+   infinite/looping decorative animations for comfort */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .animate-wave,
+  .shine::after,
+  .app-bg::before,
+  .app-bg::after,
+  .animate-pulse-glow {
+    animation: none !important;
+  }
+
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-pop-in,
+  .animate-slide-in {
+    animation-duration: 300ms !important;
   }
 }
 
