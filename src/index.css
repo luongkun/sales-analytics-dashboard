@@ -617,26 +617,14 @@ body {
   animation: vip-sheen-sweep 4.5s ease-in-out infinite;
 }
 
-/* --- VIP 3 Vàng: lấp lánh — hào quang nhịp + sheen + tia lấp lánh --- */
+/* --- VIP 3 Vàng: lấp lánh — hào quang tĩnh + sheen + tia lấp lánh (bỏ glow phồng/xẹp) --- */
 .vip-fx-gold {
-  animation: vip-gold-glow 2.4s ease-in-out infinite;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 10px 2px rgba(245, 158, 11, 0.5);
 }
 .vip-fx-gold .vip-sheen::after {
   animation: vip-sheen-sweep 3.2s ease-in-out infinite;
-}
-@keyframes vip-gold-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 0 8px 1px rgba(245, 158, 11, 0.45);
-  }
-  50% {
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 0 18px 5px rgba(250, 204, 21, 0.85),
-      0 0 32px 7px rgba(245, 158, 11, 0.4);
-  }
 }
 
 /* --- VIP 4 Kim Cương: sang trọng hơn nữa --- */
@@ -648,9 +636,10 @@ body {
 .vip-fx-diamond {
   background-image: linear-gradient(90deg, #a855f7, #d946ef, #f0abfc, #d946ef, #a855f7);
   background-size: 300% 100%;
-  animation:
-    vip-diamond-glow 2.2s ease-in-out infinite,
-    vip-gradient-flow 4s ease-in-out infinite;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 14px 3px rgba(168, 85, 247, 0.6);
+  animation: vip-gradient-flow 4s ease-in-out infinite;
 }
 .vip-fx-diamond .vip-sheen::after {
   animation: vip-sheen-sweep 2.4s ease-in-out infinite;
@@ -672,36 +661,12 @@ body {
     #a855f7
   );
   filter: blur(1.5px);
-  animation:
-    vip-ring-spin 3.5s linear infinite,
-    vip-ring-pulse 2.2s ease-in-out infinite;
+  opacity: 0.6;
+  animation: vip-ring-spin 3.5s linear infinite;
 }
 @keyframes vip-ring-spin {
   to {
     --vip-ring-angle: 360deg;
-  }
-}
-@keyframes vip-ring-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-@keyframes vip-diamond-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 0 12px 2px rgba(168, 85, 247, 0.55);
-  }
-  50% {
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.12),
-      0 0 24px 6px rgba(217, 70, 239, 0.9),
-      0 0 44px 10px rgba(168, 85, 247, 0.45);
   }
 }
 @keyframes vip-gradient-flow {
