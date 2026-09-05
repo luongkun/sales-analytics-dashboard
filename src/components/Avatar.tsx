@@ -1,6 +1,6 @@
 import { User } from '../context/AuthContext';
 import { Crown } from 'lucide-react';
-import { getVipInfo } from '../utils/vip';
+import { getVipInfo, type VipTierDef } from '../utils/vip';
 
 export const AVATAR_GRADIENTS: Record<string, string> = {
   default: 'from-blue-500 to-indigo-600',
@@ -32,8 +32,8 @@ interface AvatarProps {
   size: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-/** Huy hiệu vương miện VIP ở góc avatar (chỉ hiện từ VIP 1 trở lên) */
-function VipCrown({ level, size }: { level: number; size: 'sm' | 'md' | 'lg' | 'xl' }) {
+/** Huy hiệu vương miện VIP ở góc avatar (chỉ hiện từ VIP 1 trở lên) — màu theo cấp */
+function VipCrown({ tier, size }: { tier: VipTierDef; size: 'sm' | 'md' | 'lg' | 'xl' }) {
   const box =
     size === 'sm' ? 'w-[15px] h-[15px] -bottom-0.5 -right-0.5' :
     size === 'md' ? 'w-[17px] h-[17px] -bottom-0.5 -right-0.5' :
@@ -44,9 +44,9 @@ function VipCrown({ level, size }: { level: number; size: 'sm' | 'md' | 'lg' | '
     size === 'lg' ? 'w-4 h-4' : 'w-5 h-5';
   return (
     <span
-      className={`absolute ${box} rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center ring-2 ring-white dark:ring-gray-800 shadow-md shadow-amber-500/40`}
-      title={`VIP ${level}`}
-      aria-label={`Huy hiệu VIP cấp ${level}`}
+      className={`absolute ${box} rounded-full bg-gradient-to-br ${tier.gradient} flex items-center justify-center ring-2 ring-white dark:ring-gray-800 shadow-md ${tier.glow}`}
+      title={`VIP ${tier.level} · ${tier.name}`}
+      aria-label={`Huy hiệu VIP ${tier.level} · ${tier.name}`}
     >
       <Crown className={`${icon} text-white`} strokeWidth={2.5} />
     </span>
@@ -73,7 +73,7 @@ export default function Avatar({ user, size }: AvatarProps) {
           alt={user.name}
           className={`${sizeCls} rounded-full object-cover flex-shrink-0 shadow-md ring-2 ring-white dark:ring-gray-800`}
         />
-        {showCrown && <VipCrown level={vip.tier!.level} size={size} />}
+        {showCrown && <VipCrown tier={vip.tier!} size={size} />}
       </span>
     );
   }
@@ -89,7 +89,7 @@ export default function Avatar({ user, size }: AvatarProps) {
           {initials}
         </span>
       </div>
-      {showCrown && <VipCrown level={vip.tier!.level} size={size} />}
+      {showCrown && <VipCrown tier={vip.tier!} size={size} />}
     </span>
   );
 }

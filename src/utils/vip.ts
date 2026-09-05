@@ -2,6 +2,7 @@
  * Hệ thống VIP theo tổng tiền đã nạp (SUM transactions type='topup').
  * Tier tính ở backend (publicUser.vip) — file này chỉ để UI render đồng bộ:
  * màu, icon, mô tả quyền lợi, thanh tiến độ lên hạng tiếp theo.
+ * Mỗi cấp có bộ màu riêng (gradient, chữ, vạch, ring, nền badge, icon Crown).
  */
 import type { ComponentType } from 'react';
 import { Crown } from 'lucide-react';
@@ -11,13 +12,20 @@ export interface VipTierDef {
   name: string;
   min: number;
   bonusPct: number;
-  /** gradient chip */
+  /** gradient chip đậm (badge chính ở Profile) */
   gradient: string;
   /** màu chữ/điểm nhấn */
   text: string;
   /** màu vạch tiến độ */
   bar: string;
+  /** ring quanh avatar */
   ring: string;
+  /** viền + nền mềm cho khối badge (UserMenu, TopUp) — đổi theo cấp */
+  soft: string;
+  /** màu icon Crown — đổi theo cấp */
+  crown: string;
+  /** màu shadow/hào quang huy hiệu */
+  glow: string;
   benefit: string;
 }
 
@@ -31,6 +39,9 @@ export const VIP_TIERS: VipTierDef[] = [
     text: 'text-amber-700 dark:text-amber-400',
     bar: 'from-amber-600 to-orange-500',
     ring: 'ring-amber-400/60',
+    soft: 'border-amber-300/60 dark:border-amber-500/25 bg-gradient-to-r from-amber-500/10 to-orange-500/5 dark:from-amber-400/10 dark:to-orange-400/5',
+    crown: 'text-amber-600 dark:text-amber-400',
+    glow: 'shadow-amber-600/40',
     benefit: 'Huy hiệu VIP · Thưởng nạp +1%',
   },
   {
@@ -42,6 +53,9 @@ export const VIP_TIERS: VipTierDef[] = [
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'from-slate-500 to-gray-400',
     ring: 'ring-slate-300/60',
+    soft: 'border-slate-300/70 dark:border-slate-400/25 bg-gradient-to-r from-slate-400/10 to-gray-400/5 dark:from-slate-300/10 dark:to-gray-400/5',
+    crown: 'text-slate-500 dark:text-slate-300',
+    glow: 'shadow-slate-400/50',
     benefit: 'Thưởng nạp +2% · Ưu tiên xử lý đơn',
   },
   {
@@ -53,29 +67,24 @@ export const VIP_TIERS: VipTierDef[] = [
     text: 'text-yellow-600 dark:text-yellow-400',
     bar: 'from-yellow-500 to-amber-400',
     ring: 'ring-yellow-400/70',
+    soft: 'border-yellow-300/70 dark:border-yellow-400/25 bg-gradient-to-r from-yellow-400/15 to-amber-400/5 dark:from-yellow-400/10 dark:to-amber-400/5',
+    crown: 'text-yellow-500 dark:text-yellow-400',
+    glow: 'shadow-yellow-500/40',
     benefit: 'Thưởng nạp +3% · Quà sinh nhật 50.000đ',
   },
   {
     level: 4,
-    name: 'Bạch Kim',
+    name: 'Kim Cương',
     min: 5_000_000,
     bonusPct: 5,
-    gradient: 'from-cyan-500 to-teal-500',
-    text: 'text-cyan-600 dark:text-cyan-300',
-    bar: 'from-cyan-500 to-teal-400',
-    ring: 'ring-cyan-300/70',
-    benefit: 'Thưởng nạp +5% · CSKH riêng 1-1',
-  },
-  {
-    level: 5,
-    name: 'Kim Cương',
-    min: 10_000_000,
-    bonusPct: 8,
     gradient: 'from-purple-500 to-fuchsia-500',
     text: 'text-purple-600 dark:text-purple-300',
     bar: 'from-purple-500 to-fuchsia-400',
     ring: 'ring-purple-300/70',
-    benefit: 'Thưởng nạp +8% · Ưu đãi độc quyền',
+    soft: 'border-purple-300/60 dark:border-purple-400/25 bg-gradient-to-r from-purple-500/15 to-fuchsia-500/5 dark:from-purple-400/15 dark:to-fuchsia-400/5',
+    crown: 'text-purple-500 dark:text-purple-300',
+    glow: 'shadow-purple-500/40',
+    benefit: 'Thưởng nạp +5% · CSKH riêng 1-1 · Ưu đãi độc quyền',
   },
 ];
 

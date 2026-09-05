@@ -89,8 +89,8 @@ function TopUpPageInner() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Số dư hiện tại: <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(user.balance)}đ</span>
             </p>
-            <p className="text-xs mt-1 flex items-center gap-1.5 text-amber-600 dark:text-amber-400 truncate">
-              <Crown className="w-3.5 h-3.5 flex-shrink-0" />
+            <p className={`text-xs mt-1 flex items-center gap-1.5 truncate ${vip.tier ? vip.tier.text : 'text-gray-500 dark:text-gray-400'}`}>
+              <Crown className={`w-3.5 h-3.5 flex-shrink-0 ${vip.tier ? vip.tier.crown : 'text-gray-400'}`} />
               {vip.tier ? (
                 <>
                   VIP {vip.tier.level} · {vip.tier.name} — thưởng nạp +{vip.tier.bonusPct}%
@@ -272,10 +272,10 @@ function TopUpPageInner() {
             )}
             {vipBonus > 0 && vip.tier && (
               <div className="flex justify-between">
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <span className={`flex items-center gap-1 ${vip.tier.crown}`}>
                   <Crown className="w-3.5 h-3.5" /> Thưởng VIP {vip.tier.level} · {vip.tier.name} (+{vip.tier.bonusPct}%)
                 </span>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">+{formatNumber(vipBonus)}đ</span>
+                <span className={`font-semibold ${vip.tier.crown}`}>+{formatNumber(vipBonus)}đ</span>
               </div>
             )}
             <div className="flex justify-between">

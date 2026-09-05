@@ -185,11 +185,12 @@ function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
                 {/* Hạng VIP theo tổng tiền đã nạp */}
                 {(() => {
                   const vip = getVipInfo(user.totalTopup ?? 0);
+                  const noTier = 'border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-400/10 to-gray-300/5 dark:from-gray-500/10 dark:to-gray-400/5';
                   return (
-                    <div className="mt-2.5 rounded-lg border border-amber-200/60 dark:border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-yellow-500/5 dark:from-amber-400/10 dark:to-yellow-400/5 px-3 py-2">
+                    <div className={`mt-2.5 rounded-lg border bg-gradient-to-r px-3 py-2 ${vip.tier ? vip.tier.soft : noTier}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 min-w-0">
-                          <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <Crown className={`w-3.5 h-3.5 flex-shrink-0 ${vip.tier ? vip.tier.crown : 'text-gray-400'}`} />
                           {vip.tier ? (
                             <span className={`text-[11px] font-bold truncate ${vip.tier.text}`}>
                               VIP {vip.tier.level} · {vip.tier.name}
@@ -199,7 +200,7 @@ function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
                           )}
                         </span>
                         {vip.tier && (
-                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                          <span className={`text-[10px] font-bold whitespace-nowrap ${vip.tier.crown}`}>
                             +{vip.tier.bonusPct}%
                           </span>
                         )}

@@ -86,8 +86,7 @@ const VIP_TIERS = [
   { level: 1, name: 'Đồng', min: 100000, bonusPct: 1 },
   { level: 2, name: 'Bạc', min: 500000, bonusPct: 2 },
   { level: 3, name: 'Vàng', min: 1000000, bonusPct: 3 },
-  { level: 4, name: 'Bạch Kim', min: 5000000, bonusPct: 5 },
-  { level: 5, name: 'Kim Cương', min: 10000000, bonusPct: 8 },
+  { level: 4, name: 'Kim Cương', min: 5000000, bonusPct: 5 },
 ];
 
 function vipTierOf(totalTopup) {
