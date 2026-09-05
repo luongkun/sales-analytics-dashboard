@@ -806,16 +806,15 @@ body {
   animation-delay: 1s;
 }
 
-/* Tôn trọng người dùng muốn giảm chuyển động */
-@media (prefers-reduced-motion: reduce) {
-  .vip-fx-silver .vip-sheen::after,
-  .vip-fx-gold,
-  .vip-fx-gold .vip-sheen::after,
-  .vip-fx-gold .vip-ring-rotate,
-  .vip-fx-diamond,
-  .vip-fx-diamond .vip-sheen::after,
-  .vip-fx-diamond .vip-ring-rotate,
-  .vip-spark {
-    animation: none;
-  }
+/* Hiệu ứng VIP LUÔN chạy bất kể cài đặt prefers-reduced-motion của Windows/trình duyệt
+   (theo yêu cầu chủ shop — huy hiệu hạng là điểm nhấn thương hiệu) */
+.vip-fx-silver .vip-sheen::after,
+.vip-fx-gold,
+.vip-fx-gold .vip-sheen::after,
+.vip-fx-gold .vip-ring-rotate,
+.vip-fx-diamond,
+.vip-fx-diamond .vip-sheen::after,
+.vip-fx-diamond .vip-ring-rotate,
+.vip-spark {
+  animation-play-state: running !important;
 }
