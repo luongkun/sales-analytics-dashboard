@@ -17,10 +17,12 @@ function VipRankBadge({ tier }: { tier: VipTierDef }) {
   const fx =
     tier.level === 2 ? 'vip-fx-silver' : tier.level === 3 ? 'vip-fx-gold' : tier.level === 4 ? 'vip-fx-diamond' : '';
   const sparks = tier.level === 3 ? 3 : tier.level === 4 ? 5 : 0;
+  const ring = tier.level === 3 || tier.level === 4;
   return (
     <span
-      className={`vip-rank-badge ${fx} relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-white bg-gradient-to-r ${tier.gradient} shadow-md flex-shrink-0`}
+      className={`vip-rank-badge ${fx} relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-bold text-white bg-gradient-to-r ${tier.gradient} shadow-md flex-shrink-0`}
     >
+      {ring && <span className="vip-ring-rotate" aria-hidden="true" />}
       <span className="vip-sheen" aria-hidden="true" />
       <Crown className="w-4 h-4" />
       VIP {tier.level} · {tier.name}
