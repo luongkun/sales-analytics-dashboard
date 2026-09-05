@@ -45,6 +45,17 @@ db.exec(`
     timestamp INTEGER,
     FOREIGN KEY (email) REFERENCES users(email)
   );
+
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    sessionId TEXT NOT NULL,
+    role TEXT NOT NULL, -- 'user' | 'assistant'
+    content TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    FOREIGN KEY (email) REFERENCES users(email)
+  );
+  CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(email, sessionId, id);
 `);
 
 // ----- Migration nhẹ (idempotent): thêm cột mới cho DB cũ -----
@@ -150,6 +161,38 @@ export function getTotalTopup(email) {
 export function getTransactions(email) {
   const stmt = db.prepare('SELECT * FROM transactions WHERE email = ? ORDER BY timestamp DESC');
   return stmt.all(email);
+}
+
+// ============================================================
+//  CHAT AI — lịch sử hội thoại bền vững (lưu DB)
+// ============================================================
+const CHAT_HISTORY_LIMIT = 200; // giữ tối đa 200 tin / phiên (chống phình DB)
+
+/** Lịch sử hội thoại của 1 phiên (user) */
+export function getChatMessages(email, sessionId) {
+  return db
+    .prepare(
+      'SELECT role, content, createdAt FROM chat_messages WHERE email = ? AND sessionId = ? ORDER BY id ASC'
+    )
+    .all(email, sessionId);
+}
+
+/** Thêm 1 tin nhắn vào lịch sử + tự prune vượt giới hạn */
+export function addChatMessage(email, sessionId, role, content) {
+  db.prepare(
+    'INSERT INTO chat_messages (email, sessionId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)'
+  ).run(email, sessionId, role, content, Date.now());
+  // Prune: xóa tin cũ nhất nếu vượt giới hạn
+  db.prepare(
+    `DELETE FROM chat_messages WHERE id IN (
+       SELECT id FROM chat_messages WHERE email = ? AND sessionId = ? ORDER BY id DESC LIMIT -1 OFFSET ?
+     )`
+  ).run(email, sessionId, CHAT_HISTORY_LIMIT);
+}
+
+/** Xóa toàn bộ lịch sử 1 phiên */
+export function clearChatMessages(email, sessionId) {
+  db.prepare('DELETE FROM chat_messages WHERE email = ? AND sessionId = ?').run(email, sessionId);
 }
 
 export default db;

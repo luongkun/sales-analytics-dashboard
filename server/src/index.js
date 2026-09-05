@@ -20,6 +20,9 @@ import {
   updateOrderStatus,
   createTransaction,
   getTotalTopup,
+  getChatMessages,
+  addChatMessage,
+  clearChatMessages,
 } from './db.js';
 import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { getAdminUsersPage, getAdminOrdersPage, bulkDeleteUsers, bulkSetRole } from './admin.js';
@@ -749,9 +752,8 @@ KIẾN THỨC SHOP:
 4. LIÊN HỆ NGƯỜI THẬT: các vấn đề cần can thiệp (đơn treo lâu, nạp chưa cộng, đổi trả) → vào "Công cụ" → "Hỗ trợ" lấy thông tin liên hệ hotline/Zalo/Telegram, gửi kèm mã đơn (dạng ORD-XXXXXX).
 5. HỒ SƠ: đổi tên/avatar/ngôn ngữ tại "Tùy chỉnh hồ sơ" (menu avatar). Dark mode ở nút mặt trăng/mặt trời.`;
 
-// Quản lý hội thoại: key = "email:sessionId" → mảng message
-const chatSessions = new Map();
-const CHAT_MAX_TURNS = 20; // giữ 20 tin gần nhất + system prompt
+// Chat nhớ ngữ cảnh qua lịch sử lưu DB (bền vững qua restart) — gửi tới AI tối đa 20 tin gần nhất
+const CHAT_MAX_TURNS = 20;
 
 // Rate limit nhẹ: 25 tin / 5 phút / user
 const chatRate = new Map(); // email -> { count, resetAt }
@@ -777,11 +779,11 @@ app.post('/api/chat', auth, async (req, res) => {
       return res.status(429).json({ error: 'Bạn nhắn hơi nhanh — chờ chút rồi thử lại nhé' });
     }
 
-    const key = `${req.user.email}:${sessionId}`;
-    let history = chatSessions.get(key) || [];
+    // Lấy lịch sử từ DB, thêm tin user mới
+    const history = getChatMessages(req.user.email, sessionId).map((m) => ({ role: m.role, content: m.content }));
     history.push({ role: 'user', content: text });
 
-    // Trim: giữ system prompt + 20 tin gần nhất
+    // Trim: gửi system prompt + 20 tin gần nhất
     const trimmed = history.slice(-CHAT_MAX_TURNS);
 
     const zai = await getZAI();
@@ -792,20 +794,28 @@ app.post('/api/chat', auth, async (req, res) => {
     const aiResponse = completion.choices[0]?.message?.content;
     if (!aiResponse || !aiResponse.trim()) throw new Error('Phản hồi trống từ AI');
 
-    history.push({ role: 'assistant', content: aiResponse });
-    chatSessions.set(key, history);
+    // Lưu vĩnh viễn vào DB (tin user + tin AI)
+    addChatMessage(req.user.email, sessionId, 'user', text);
+    addChatMessage(req.user.email, sessionId, 'assistant', aiResponse);
 
-    res.json({ success: true, response: aiResponse, messageCount: history.length });
+    res.json({ success: true, response: aiResponse, messageCount: history.length + 1 });
   } catch (err) {
     console.error('[chat] Lỗi:', err.message);
     res.status(500).json({ error: 'Trợ lý AI đang bận, thử lại sau ít phút nhé' });
   }
 });
 
+// Lấy lịch sử hội thoại (khôi phục khi mở lại trang / đổi thiết bị)
+app.get('/api/chat', auth, (req, res) => {
+  const sessionId = typeof req.query?.sessionId === 'string' ? String(req.query.sessionId).slice(0, 64) : 'default';
+  const messages = getChatMessages(req.user.email, sessionId);
+  res.json({ success: true, messages });
+});
+
 // Xóa hội thoại (cuộc trò chuyện mới)
 app.delete('/api/chat/:sessionId', auth, (req, res) => {
-  const key = `${req.user.email}:${String(req.params.sessionId).slice(0, 64)}`;
-  chatSessions.delete(key);
+  const sessionId = String(req.params.sessionId).slice(0, 64);
+  clearChatMessages(req.user.email, sessionId);
   res.json({ success: true });
 });
 

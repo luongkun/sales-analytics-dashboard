@@ -73,12 +73,34 @@ export default function AiChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [sessionId, setSessionId] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Khôi phục lịch sử hội thoại từ server (lưu DB — còn mãi khi restart/đổi thiết bị)
   useEffect(() => {
-    setSessionId(getSessionId());
+    const id = getSessionId();
+    setSessionId(id);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api<{ success: boolean; messages: { role: 'user' | 'assistant'; content: string; createdAt: number }[] }>(
+          `/chat?sessionId=${encodeURIComponent(id)}`
+        );
+        if (cancelled) return;
+        if (res.messages && res.messages.length > 0) {
+          setMessages(res.messages.map((m) => ({ role: m.role, content: m.content, time: m.createdAt })));
+        }
+      } catch {
+        // Không tải được lịch sử → bắt đầu với greeting mới
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Tự cuộn xuống cuối khi có tin nhắn mới
@@ -224,8 +246,16 @@ export default function AiChatPage() {
               </div>
             )}
 
+            {/* Đang khôi phục lịch sử */}
+            {loadingHistory && (
+              <div className="flex items-center gap-2 px-2 py-4 text-sm text-gray-400 dark:text-gray-500">
+                <RotateCcw className="w-4 h-4 animate-spin" />
+                Đang tải lịch sử hội thoại…
+              </div>
+            )}
+
             {/* Gợi ý câu hỏi khi chưa hỏi gì */}
-            {messages.length === 1 && !sending && (
+            {!loadingHistory && messages.length === 1 && !sending && (
               <div className="pt-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 px-1">
                   Câu hỏi phổ biến — bấm để hỏi ngay:
