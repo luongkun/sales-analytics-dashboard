@@ -26,6 +26,16 @@ import {
 } from './db.js';
 import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { getAdminUsersPage, getAdminOrdersPage, bulkDeleteUsers, bulkSetRole } from './admin.js';
+import {
+  createPaymentRequest as createQrPayment,
+  publicPayment,
+} from './payments.js';
+import {
+  getPaymentRequest,
+  getPaymentRequestByContent,
+  setPaymentStatus,
+  expireStalePayments,
+} from './db.js';
 
 // ---------- Email ----------
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
@@ -395,44 +405,125 @@ app.post('/api/profile/migrate', auth, (req, res) => {
 });
 
 // ----- Balance / Topup -----
-app.post('/api/balance/topup', auth, (req, res) => {
-  const { amount } = req.body || {};
-  const value = Number(amount);
-  if (!Number.isFinite(value) || value < 10000) return res.status(400).json({ error: 'Số tiền nạp tối thiểu 10.000đ' });
-  const user = getUser(req.user.email);
-  if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
-  // Thưởng theo mệnh giá (như cũ) + thưởng VIP theo hạng hiệu dụng (ưu tiên override admin)
+
+/** Logic cộng tiền nạp dùng CHUNG: /balance/topup (momo/thẻ demo) + webhook VietQR.
+ *  Tính thưởng theo mệnh giá + thưởng VIP hạng hiện tại, ghi transaction, broadcast realtime. */
+function applyTopupCredit(email, value) {
+  const user = getUser(email);
+  if (!user) return { error: 404, data: { error: 'Tài khoản không tồn tại' } };
   const baseBonus = value >= 1000000 ? Math.round(value * 0.05) : value >= 500000 ? Math.round(value * 0.02) : 0;
   const prevTotal = getTotalTopup(user.email);
   const prevTier = effectiveVipTier(user);
   const vipBonus = prevTier ? Math.round((value * prevTier.bonusPct) / 100) : 0;
   const bonus = baseBonus + vipBonus;
   const newBalance = user.balance + value + bonus;
-  updateUser(req.user.email, { balance: newBalance });
-  createTransaction({
-    id: `TX-${Date.now()}`,
-    email: user.email,
-    type: 'topup',
-    amount: value,
-    bonus,
-    timestamp: Date.now(),
-  });
-  const updated = getUser(req.user.email);
+  updateUser(email, { balance: newBalance });
+  const txId = `TX-${Date.now()}`;
+  createTransaction({ id: txId, email: user.email, type: 'topup', amount: value, bonus, timestamp: Date.now() });
+  const updated = getUser(email);
   const newTotal = prevTotal + value;
   const newTier = effectiveVipTier(updated);
   const tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
-  broadcastUserUpdated(req.user.email, publicUser(updated), 'topup', req.user.email);
-  res.json({
-    ok: true,
-    balance: updated.balance,
-    bonus,
-    baseBonus,
-    vipBonus,
-    totalTopup: newTotal,
-    vip: newTier ? { level: newTier.level, name: newTier.name, bonusPct: newTier.bonusPct } : null,
-    tierUp: tierUp ? { level: tierUp.level, name: tierUp.name } : null,
-    transaction: { id: `TX-${Date.now()}`, amount: value, bonus },
-  });
+  broadcastUserUpdated(email, publicUser(updated), 'topup', email);
+  return {
+    data: {
+      ok: true,
+      amount: value,
+      balance: updated.balance,
+      bonus,
+      baseBonus,
+      vipBonus,
+      totalTopup: newTotal,
+      vip: newTier ? { level: newTier.level, name: newTier.name, bonusPct: newTier.bonusPct } : null,
+      tierUp: tierUp ? { level: tierUp.level, name: tierUp.name } : null,
+      transaction: { id: txId, amount: value, bonus },
+    },
+  };
+}
+
+app.post('/api/balance/topup', auth, (req, res) => {
+  const { amount } = req.body || {};
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value < 10000) return res.status(400).json({ error: 'Số tiền nạp tối thiểu 10.000đ' });
+  const user = getUser(req.user.email);
+  if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
+  const applied = applyTopupCredit(req.user.email, value);
+  if (applied.error) return res.status(applied.error).json(applied.data);
+  res.json(applied.data);
+});
+
+// =====================================================================
+//  PAYMENTS — VietQR động (chuyển khoản ngân hàng)
+//  1) POST /api/payments/create      : sinh QR + nội dung CK duy nhất
+//  2) GET  /api/payments/:id          : poll trạng thái (pending/paid/expired)
+//  3) POST /api/payments/webhook     : ngân hàng/cổng thanh toán báo tiền về
+//  4) POST /api/payments/:id/simulate: mô phỏng webhook (test E2E khi chưa nối ngân hàng)
+// =====================================================================
+
+// (1) User bấm Thanh toán → server tạo mã QR động
+app.post('/api/payments/create', auth, (req, res) => {
+  const { amount } = req.body || {};
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value < 10000) return res.status(400).json({ error: 'Số tiền nạp tối thiểu 10.000đ' });
+  const user = getUser(req.user.email);
+  if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
+  try {
+    const reqPayment = createQrPayment({ email: user.email, amount: value });
+    res.json({ ok: true, payment: publicPayment(reqPayment) });
+  } catch (err) {
+    console.error('Create payment error:', err.message);
+    res.status(500).json({ error: 'Không tạo được mã thanh toán, vui lòng thử lại' });
+  }
+});
+
+// (2) Poll trạng thái — tự expired các mã quá hạn, trả kèm result khi đã paid
+app.get('/api/payments/:id', auth, (req, res) => {
+  expireStalePayments();
+  const row = getPaymentRequest(req.params.id);
+  if (!row || row.email !== req.user.email) return res.status(404).json({ error: 'Không tìm thấy giao dịch' });
+  const result = row.result ? JSON.parse(row.result) : null;
+  res.json({ ok: true, payment: publicPayment(row, { result }) });
+});
+
+/** Đối soát + cộng tiền cho 1 yêu cầu thanh toán — dùng chung cho webhook thật & simulate */
+function creditPayment(row, source) {
+  // Idempotent: đã cộng rồi thì không cộng lại
+  if (row.status === 'paid') return { status: 200, data: { ok: true, duplicate: true, status: 'paid' } };
+  const applied = applyTopupCredit(row.email, row.amount);
+  if (applied.error) return { status: applied.error, data: applied.data };
+  const result = { ...applied.data, paymentId: row.id, content: row.content, source };
+  setPaymentStatus(row.id, 'paid', result);
+  console.log(`[payment] ✅ ${row.content} · ${row.amount}đ · ${row.email} · nguồn: ${source}`);
+  return { status: 200, data: result };
+}
+
+// (3) Webhook từ ngân hàng / cổng thanh toán (Casso, SePay, gateway tự build…)
+//     Body: { content: 'NAP482913', amount: 50000, gateway?: 'vcb' }
+//     Bảo mật: đặt env PAYMENT_WEBHOOK_SECRET → yêu cầu header x-webhook-secret khớp
+app.post('/api/payments/webhook', (req, res) => {
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+  if (secret && req.get('x-webhook-secret') !== secret) {
+    return res.status(401).json({ error: 'Webhook secret không hợp lệ' });
+  }
+  const { content, amount, gateway } = req.body || {};
+  if (!content) return res.status(400).json({ error: 'Thiếu nội dung chuyển khoản' });
+  const row = getPaymentRequestByContent(content);
+  if (!row) return res.status(404).json({ error: 'Không tìm thấy giao dịch khớp nội dung' });
+  const value = Number(amount);
+  if (Number.isFinite(value) && value > 0 && value !== row.amount) {
+    return res.status(400).json({ error: `Số tiền không khớp (kỳ vọng ${row.amount}đ)` });
+  }
+  const outcome = creditPayment(row, `webhook${gateway ? ':' + gateway : ''}`);
+  res.status(outcome.status).json(outcome.data);
+});
+
+// (4) Mô phỏng webhook — dùng để TEST toàn bộ flow khi chưa kết nối ngân hàng thật
+app.post('/api/payments/:id/simulate', auth, (req, res) => {
+  const row = getPaymentRequest(req.params.id);
+  if (!row || row.email !== req.user.email) return res.status(404).json({ error: 'Không tìm thấy giao dịch' });
+  if (row.status === 'expired') return res.status(400).json({ error: 'Mã đã hết hạn — tạo mã mới' });
+  const outcome = creditPayment(row, 'simulate');
+  res.status(outcome.status).json(outcome.data);
 });
 
 // ----- Products -----

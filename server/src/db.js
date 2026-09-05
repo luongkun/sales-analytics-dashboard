@@ -56,6 +56,22 @@ db.exec(`
     FOREIGN KEY (email) REFERENCES users(email)
   );
   CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(email, sessionId, id);
+
+  -- Yêu cầu thanh toán VietQR động: mỗi lần user bấm "Thanh toán" sinh 1 mã
+  -- nội dung chuyển khoản DUY NHẤT (VD NAP482913) — dùng để đối soát webhook
+  CREATE TABLE IF NOT EXISTS payment_requests (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    content TEXT NOT NULL UNIQUE, -- nội dung CK duy nhất (NAP + 6 số)
+    amount INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending', -- pending | paid | expired
+    result TEXT,                    -- JSON kết quả cộng tiền (bonus, balance, tierUp…)
+    createdAt INTEGER,
+    expiresAt INTEGER,
+    paidAt INTEGER,
+    FOREIGN KEY (email) REFERENCES users(email)
+  );
+  CREATE INDEX IF NOT EXISTS idx_payment_email ON payment_requests(email, createdAt);
 `);
 
 // ----- Migration nhẹ (idempotent): thêm cột mới cho DB cũ -----
@@ -193,6 +209,47 @@ export function addChatMessage(email, sessionId, role, content) {
 /** Xóa toàn bộ lịch sử 1 phiên */
 export function clearChatMessages(email, sessionId) {
   db.prepare('DELETE FROM chat_messages WHERE email = ? AND sessionId = ?').run(email, sessionId);
+}
+
+// ============================================================
+//  PAYMENT REQUESTS (VietQR động — đối soát webhook)
+// ============================================================
+
+/** Chèn yêu cầu thanh toán — trả về false nếu trùng content (bên gọi sinh lại) */
+export function insertPaymentRequest(row) {
+  try {
+    db.prepare(
+      'INSERT INTO payment_requests (id, email, content, amount, status, createdAt, expiresAt) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(row.id, row.email, row.content, row.amount, 'pending', row.createdAt, row.expiresAt);
+    return true;
+  } catch (err) {
+    if (String(err.message || '').includes('UNIQUE')) return false; // trùng content → sinh mã khác
+    throw err;
+  }
+}
+
+export function getPaymentRequest(id) {
+  return db.prepare('SELECT * FROM payment_requests WHERE id = ?').get(id);
+}
+
+export function getPaymentRequestByContent(content) {
+  return db
+    .prepare('SELECT * FROM payment_requests WHERE content = ? COLLATE NOCASE')
+    .get(String(content || '').trim().toUpperCase());
+}
+
+/** Cập nhật trạng thái (kèm result JSON khi paid) */
+export function setPaymentStatus(id, status, result) {
+  db.prepare(
+    "UPDATE payment_requests SET status = ?, result = ?, paidAt = CASE WHEN ? = 'paid' THEN ? ELSE paidAt END WHERE id = ?"
+  ).run(status, result ? JSON.stringify(result) : null, status, Date.now(), id);
+}
+
+/** Các yêu cầu pending đã quá hạn → chuyển expired (gọi lười khi poll) */
+export function expireStalePayments() {
+  db.prepare("UPDATE payment_requests SET status = 'expired' WHERE status = 'pending' AND expiresAt < ?").run(
+    Date.now()
+  );
 }
 
 export default db;
