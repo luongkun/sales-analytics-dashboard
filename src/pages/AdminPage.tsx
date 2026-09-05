@@ -28,7 +28,7 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatNumber } from '../data/salesData';
-import { getVipInfo } from '../utils/vip';
+import { getVipInfo, VIP_TIERS } from '../utils/vip';
 import AnimatedSection from '../components/AnimatedSection';
 import { onRealtime, type UsersChangedPayload } from '../realtime/client';
 
@@ -44,8 +44,10 @@ interface UserData {
   purchases: number;
   orderCount: number;
   transactions: number;
-  /** tổng tiền đã nạp (nạp thật + admin cộng tay) — quyết định hạng VIP */
+  /** tổng tiền đã nạp (nạp thật + admin cộng tay) — quyết định hạng VIP khi tự động */
   totalTopup: number;
+  /** null = VIP tự động theo tổng nạp · 0 = không VIP · 1-4 = admin đặt hạng cứng */
+  vipOverride: number | null;
 }
 
 interface UsersPageResponse {
@@ -113,6 +115,7 @@ export default function AdminPage() {
   // --- chỉnh sửa 1 user ---
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [editRole, setEditRole] = useState('');
+  const [editVip, setEditVip] = useState<string>('auto');
   const [saving, setSaving] = useState(false);
 
   // --- điều chỉnh số dư (cộng/trừ dần, không set tuyệt đối) ---
@@ -124,10 +127,10 @@ export default function AdminPage() {
   const adjustValid = adjustValue > 0 && (adjustMode === 'add' || adjustValue <= (editingUser?.balance ?? 0));
   const previewBalance = editingUser ? Math.max(0, editingUser.balance + (adjustMode === 'add' ? adjustValue : -adjustValue)) : 0;
 
-  // Xem trước ảnh hưởng VIP: cộng tiền tính vào tổng nạp, trừ tiền không đổi
-  const vipNow = editingUser ? getVipInfo(editingUser.totalTopup) : null;
+  // Xem trước ảnh hưởng VIP: cộng tiền tính vào tổng nạp, trừ tiền không đổi (override cứng thì không đổi)
+  const vipNow = editingUser ? getVipInfo(editingUser.totalTopup, editingUser.vipOverride) : null;
   const vipAfter = editingUser
-    ? getVipInfo(adjustMode === 'add' && adjustValue > 0 ? editingUser.totalTopup + adjustValue : editingUser.totalTopup)
+    ? getVipInfo(adjustMode === 'add' && adjustValue > 0 ? editingUser.totalTopup + adjustValue : editingUser.totalTopup, editingUser.vipOverride)
     : null;
   const vipUpPreview =
     adjustMode === 'add' && adjustValue > 0 && adjustValid && vipNow && vipAfter
@@ -281,6 +284,9 @@ export default function AdminPage() {
   const handleEdit = (u: UserData) => {
     setEditingUser(u);
     setEditRole(u.role);
+    setEditVip(
+      u.vipOverride === null || u.vipOverride === undefined ? 'auto' : String(u.vipOverride)
+    );
     setAdjustMode('add');
     setAdjustAmount('');
   };
@@ -298,6 +304,7 @@ export default function AdminPage() {
           balance: number;
           name: string;
           totalTopup?: number;
+          vipOverride?: number | null;
           vip?: { level: number; name: string; bonusPct: number } | null;
         };
         adjust?: { delta: number; newBalance: number };
@@ -309,7 +316,7 @@ export default function AdminPage() {
       const newBalance = res.user?.balance ?? res.adjust?.newBalance ?? editingUser.balance;
       const newTotal = res.user?.totalTopup ?? editingUser.totalTopup;
       const vipInfo = res.user?.vip;
-      setEditingUser((prev) => (prev ? { ...prev, balance: newBalance, totalTopup: newTotal } : prev));
+      setEditingUser((prev) => (prev ? { ...prev, balance: newBalance, totalTopup: newTotal, vipOverride: res.user?.vipOverride ?? prev.vipOverride } : prev));
       showToast({
         type: 'success',
         title: delta > 0
@@ -346,12 +353,29 @@ export default function AdminPage() {
   const handleSaveEdit = async () => {
     if (!editingUser) return;
     setSaving(true);
+    const vipBody: number | null = editVip === 'auto' ? null : Number(editVip);
     try {
       await api('/admin/users/' + encodeURIComponent(editingUser.email), {
         method: 'PUT',
-        body: { role: editRole },
+        body: { role: editRole, vipOverride: vipBody },
       });
-      showToast({ type: 'success', title: 'Cập nhật thành công' });
+      const prevLabel = editingUser.vipOverride == null
+        ? (vipNow?.tier ? `VIP ${vipNow.tier.level} · ${vipNow.tier.name} (tự động)` : 'chưa có hạng (tự động)')
+        : editingUser.vipOverride === 0
+          ? 'không có VIP'
+          : `VIP ${editingUser.vipOverride} (đặt cứng)`;
+      const nextLabel =
+        editVip === 'auto'
+          ? (vipNow?.tier ? `tự động — VIP ${vipNow.tier.level} · ${vipNow.tier.name}` : 'tự động theo tổng nạp')
+          : editVip === '0'
+            ? 'không có VIP'
+            : `VIP ${VIP_TIERS[Number(editVip) - 1].level} · ${VIP_TIERS[Number(editVip) - 1].name}`;
+      showToast({
+        type: 'success',
+        title: 'Cập nhật thành công',
+        message: `Hạng VIP: ${prevLabel} → ${nextLabel}`,
+        duration: 4000,
+      });
       setEditingUser(null);
       fetchUsers();
       if (editingUser.email === user?.email) {
@@ -978,6 +1002,37 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Hạng VIP: tự động theo tổng nạp hoặc đặt cứng theo ý admin */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">
+                  Hạng VIP
+                </label>
+                <select
+                  value={editVip}
+                  onChange={(e) => setEditVip(e.target.value)}
+                  aria-label="Chọn hạng VIP"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none"
+                >
+                  <option value="auto">
+                    Tự động — theo tổng nạp ({formatNumber(editingUser.totalTopup)}đ
+                    {vipNow?.tier ? ` · hiện VIP ${vipNow.tier.level} ${vipNow.tier.name}` : ' · chưa đạt hạng'})
+                  </option>
+                  <option value="0">Không có VIP (ẩn hạng)</option>
+                  {VIP_TIERS.map((t) => (
+                    <option key={t.level} value={String(t.level)}>
+                      VIP {t.level} · {t.name} — thưởng nạp +{t.bonusPct}%
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-gray-400 dark:text-gray-500">
+                  {editVip === 'auto'
+                    ? 'Hạng tự động tăng theo tổng tiền đã nạp của tài khoản này.'
+                    : editVip === '0'
+                      ? 'Tài khoản sẽ hiển thị không có hạng VIP dù tổng nạp đã đạt ngưỡng.'
+                      : 'Đặt cứng hạng này — không tự tăng theo tổng nạp, thưởng nạp áp dụng ngay theo hạng đã chọn.'}
+                </p>
+              </div>
+
               <div>
                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">
                   Vai trò
@@ -1004,7 +1059,7 @@ export default function AdminPage() {
                 disabled={saving}
                 className="flex-1 py-2.5 font-bold rounded-xl transition-all bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
               >
-                {saving ? 'Đang lưu...' : 'Lưu vai trò'}
+                {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           </div>

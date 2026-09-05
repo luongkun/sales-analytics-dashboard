@@ -25,6 +25,8 @@ export interface User {
   purchasedUpgrades: string[];
   avatar?: string;
   totalTopup?: number;
+  /** null = VIP tự động theo tổng nạp · 0 = không VIP · 1-4 = admin đặt hạng cứng */
+  vipOverride?: number | null;
   vip?: { level: number; name: string; bonusPct: number } | null;
 }
 

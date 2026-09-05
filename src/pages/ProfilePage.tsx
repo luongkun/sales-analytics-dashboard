@@ -162,7 +162,7 @@ function ProfilePageInner() {
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2.5 min-w-0">
                 {(() => {
-                  const t = getVipInfo(user.totalTopup ?? 0).tier;
+                  const t = getVipInfo(user.totalTopup ?? 0, user.vipOverride).tier;
                   return (
                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg flex-shrink-0 ${t ? `${t.gradient} ${t.glow}` : 'from-gray-400 to-gray-500 shadow-gray-400/30'}`}>
                       <Crown className="w-5 h-5 text-white" />
@@ -175,13 +175,13 @@ function ProfilePageInner() {
                 </div>
               </div>
               {(() => {
-                const t = getVipInfo(user.totalTopup ?? 0).tier;
+                const t = getVipInfo(user.totalTopup ?? 0, user.vipOverride).tier;
                 return t ? <VipRankBadge tier={t} /> : <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">Chưa có hạng</span>;
               })()}
             </div>
 
             {(() => {
-              const vip = getVipInfo(user.totalTopup ?? 0);
+              const vip = getVipInfo(user.totalTopup ?? 0, user.vipOverride);
               return (
                 <>
                   {/* Tổng đã nạp + tiến độ */}

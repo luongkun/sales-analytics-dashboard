@@ -62,7 +62,7 @@ export default function Avatar({ user, size }: AvatarProps) {
         : size === 'lg'
           ? 'w-24 h-24'
           : 'w-32 h-32';
-  const vip = getVipInfo(user.totalTopup ?? 0);
+  const vip = getVipInfo(user.totalTopup ?? 0, user.vipOverride);
   const showCrown = !!vip.tier;
 
   if (user.avatar && !user.avatar.startsWith('gradient:')) {

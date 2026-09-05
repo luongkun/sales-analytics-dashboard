@@ -50,7 +50,7 @@ export function getAdminUsersPage({ page = 1, pageSize = 10, q = '', role = 'all
             (SELECT COUNT(*) FROM orders o WHERE o.email = u.email) AS orderCount,
             (SELECT COUNT(*) FROM transactions t WHERE t.email = u.email) AS transactions,
             (SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.email = u.email AND t.type IN ('topup','admin_topup')) AS totalTopup,
-            u.region
+            u.region, u.vipOverride
      FROM users u ${whereSql}
      ORDER BY ${orderBy}, u.email ASC
      LIMIT ? OFFSET ?`
@@ -67,6 +67,7 @@ export function getAdminUsersPage({ page = 1, pageSize = 10, q = '', role = 'all
     orderCount: u.orderCount,
     transactions: u.transactions,
     totalTopup: u.totalTopup,
+    vipOverride: u.vipOverride ?? null,
   }));
 
   return { users, total, page: p, pageSize: size, pageCount };

@@ -40,7 +40,7 @@ function TopUpPageInner() {
   const valid = amount >= 10000;
   // Thưởng theo mệnh giá (backend tính lại chuẩn) + ước tính thưởng VIP theo hạng hiện tại
   const baseBonus = amount >= 1000000 ? Math.round(amount * 0.05) : amount >= 500000 ? Math.round(amount * 0.02) : 0;
-  const vip = getVipInfo(user.totalTopup ?? 0);
+  const vip = getVipInfo(user.totalTopup ?? 0, user.vipOverride);
   const vipBonus = vip.tier ? Math.round((amount * vip.tier.bonusPct) / 100) : 0;
   const bonus = baseBonus + vipBonus;
 

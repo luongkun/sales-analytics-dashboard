@@ -184,7 +184,7 @@ function UserMenu({ onNavigate }: { onNavigate: (pageId: PageId) => void }) {
                 </span>
                 {/* Hạng VIP theo tổng tiền đã nạp */}
                 {(() => {
-                  const vip = getVipInfo(user.totalTopup ?? 0);
+                  const vip = getVipInfo(user.totalTopup ?? 0, user.vipOverride);
                   const noTier = 'border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-400/10 to-gray-300/5 dark:from-gray-500/10 dark:to-gray-400/5';
                   return (
                     <div className={`mt-2.5 rounded-lg border bg-gradient-to-r px-3 py-2 ${vip.tier ? vip.tier.soft : noTier}`}>

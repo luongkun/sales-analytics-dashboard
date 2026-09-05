@@ -97,10 +97,20 @@ function vipTierOf(totalTopup) {
   return tier;
 }
 
+/** Hạng VIP hiệu dụng: admin đặt cứng (vipOverride) thì ưu tiên, ngược lại tính theo tổng nạp.
+ *  vipOverride: null = tự động · 0 = không VIP · 1-4 = hạng cố định */
+function effectiveVipTier(user) {
+  const o = user?.vipOverride;
+  if (o === null || o === undefined) return vipTierOf(getTotalTopup(user.email));
+  const lvl = Number(o);
+  if (lvl === 0) return null;
+  return VIP_TIERS.find((t) => t.level === lvl) || null;
+}
+
 function publicUser(user) {
   const purchases = getPurchases(user.email);
   const totalTopup = getTotalTopup(user.email);
-  const tier = vipTierOf(totalTopup);
+  const tier = effectiveVipTier(user);
   return {
     name: user.name,
     email: user.email,
@@ -109,6 +119,7 @@ function publicUser(user) {
     purchasedUpgrades: purchases,
     avatar: user.avatar || undefined,
     totalTopup,
+    vipOverride: user.vipOverride ?? null,
     vip: tier ? { level: tier.level, name: tier.name, bonusPct: tier.bonusPct } : null,
   };
 }
@@ -385,10 +396,10 @@ app.post('/api/balance/topup', auth, (req, res) => {
   if (!Number.isFinite(value) || value < 10000) return res.status(400).json({ error: 'Số tiền nạp tối thiểu 10.000đ' });
   const user = getUser(req.user.email);
   if (!user) return res.status(404).json({ error: 'Tài khoản không tồn tại' });
-  // Thưởng theo mệnh giá (như cũ) + thưởng VIP theo hạng hiện tại
+  // Thưởng theo mệnh giá (như cũ) + thưởng VIP theo hạng hiệu dụng (ưu tiên override admin)
   const baseBonus = value >= 1000000 ? Math.round(value * 0.05) : value >= 500000 ? Math.round(value * 0.02) : 0;
   const prevTotal = getTotalTopup(user.email);
-  const prevTier = vipTierOf(prevTotal);
+  const prevTier = effectiveVipTier(user);
   const vipBonus = prevTier ? Math.round((value * prevTier.bonusPct) / 100) : 0;
   const bonus = baseBonus + vipBonus;
   const newBalance = user.balance + value + bonus;
@@ -403,7 +414,7 @@ app.post('/api/balance/topup', auth, (req, res) => {
   });
   const updated = getUser(req.user.email);
   const newTotal = prevTotal + value;
-  const newTier = vipTierOf(newTotal);
+  const newTier = effectiveVipTier(updated);
   const tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
   broadcastUserUpdated(req.user.email, publicUser(updated), 'topup', req.user.email);
   res.json({
@@ -557,7 +568,7 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
     return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
   }
   const { email } = req.params;
-  const { balance, balanceAdjust, role } = req.body;
+  const { balance, balanceAdjust, role, vipOverride } = req.body;
   const target = getUser(email);
   if (!target) return res.status(404).json({ error: 'Người dùng không tồn tại' });
   if (email === 'admin@luongkun.io' && role !== undefined && role !== 'admin') {
@@ -565,6 +576,21 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
   }
   const updates = {};
   let adjustDelta = null;
+  let vipChanged = false;
+  // Hạng VIP: null = tự động theo tổng nạp · 0 = không VIP · 1-4 = hạng cố định
+  if (vipOverride !== undefined) {
+    if (vipOverride === null) {
+      updates.vipOverride = null;
+      vipChanged = true;
+    } else {
+      const lvl = Number(vipOverride);
+      if (!Number.isInteger(lvl) || lvl < 0 || lvl > 4) {
+        return res.status(400).json({ error: 'Hạng VIP không hợp lệ (0-4 hoặc để trống)' });
+      }
+      updates.vipOverride = lvl;
+      vipChanged = true;
+    }
+  }
   if (typeof balanceAdjust === 'number' && Number.isFinite(balanceAdjust) && Math.round(balanceAdjust) !== 0) {
     // Điều chỉnh tăng/giảm (cộng dồn vào số dư hiện tại) — không phải set tuyệt đối
     adjustDelta = Math.round(balanceAdjust);
@@ -594,16 +620,21 @@ app.put('/api/admin/users/:email', auth, async (req, res) => {
       timestamp: Date.now(),
     });
     if (isAdd) {
-      const prevTier = vipTierOf(prevTotal);
-      const newTier = vipTierOf(prevTotal + adjustDelta);
-      tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
+      // Nếu admin đã đặt hạng VIP cứng (override) thì hạng không đổi theo tiền → không báo lên hạng
+      if (target.vipOverride === null || target.vipOverride === undefined) {
+        const prevTier = vipTierOf(prevTotal);
+        const newTier = vipTierOf(prevTotal + adjustDelta);
+        tierUp = newTier && (!prevTier || newTier.level > prevTier.level) ? newTier : null;
+      }
     }
   }
   const updated = getUser(email);
   broadcastUserUpdated(email, publicUser(updated), 'admin-edit', req.user.email);
+  const finalTier = effectiveVipTier(updated);
   res.json({
     ok: true,
     user: publicUser(updated),
+    ...(vipChanged ? { vip: finalTier ? { level: finalTier.level, name: finalTier.name, bonusPct: finalTier.bonusPct } : null, vipOverride: updated.vipOverride ?? null } : {}),
     ...(adjustDelta !== null ? { adjust: { delta: adjustDelta, newBalance: updated.balance } } : {}),
     ...(tierUp ? { tierUp: { level: tierUp.level, name: tierUp.name, bonusPct: tierUp.bonusPct } } : {}),
   });

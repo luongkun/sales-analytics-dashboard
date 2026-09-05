@@ -98,11 +98,19 @@ export interface VipInfo {
   remaining: number;
 }
 
-export function getVipInfo(totalTopup: number): VipInfo {
+/**
+ * Tính hạng VIP. Nếu admin đã đặt hạng cứng (vipOverride: 0-4) thì dùng hạng đó,
+ * ngược lại tính tự động theo tổng tiền nạp.
+ */
+export function getVipInfo(totalTopup: number, vipOverride?: number | null): VipInfo {
   const t = Math.max(0, Number(totalTopup) || 0);
   let tier: VipTierDef | null = null;
-  for (const def of VIP_TIERS) {
-    if (t >= def.min) tier = def;
+  if (typeof vipOverride === 'number' && vipOverride >= 0) {
+    tier = VIP_TIERS.find((d) => d.level === vipOverride) ?? null;
+  } else {
+    for (const def of VIP_TIERS) {
+      if (t >= def.min) tier = def;
+    }
   }
   const idx = tier ? VIP_TIERS.findIndex((d) => d.level === tier.level) : -1;
   const nextTier = idx >= 0 && idx < VIP_TIERS.length - 1 ? VIP_TIERS[idx + 1] : null;

@@ -54,6 +54,7 @@ function ensureColumn(table, column, ddl) {
 }
 ensureColumn('users', 'region', 'region TEXT');
 ensureColumn('users', 'source', 'source TEXT');
+ensureColumn('users', 'vipOverride', 'vipOverride INTEGER'); // null = tự động theo tổng nạp, 0 = không VIP, 1-4 = hạng cố định
 ensureColumn('orders', 'status', "status TEXT DEFAULT 'Hoàn thành'");
 
 export function getUser(email) {
@@ -85,7 +86,7 @@ export function createUser(user) {
 }
 
 export function updateUser(email, fields) {
-  const allowed = ['name', 'password', 'role', 'balance', 'avatar', 'googleOnly', 'region', 'source'];
+  const allowed = ['name', 'password', 'role', 'balance', 'avatar', 'googleOnly', 'region', 'source', 'vipOverride'];
   const setClause = allowed
     .filter((f) => f in fields)
     .map((f) => `${f} = ?`)
