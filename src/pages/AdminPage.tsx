@@ -28,6 +28,15 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Landmark,
+  Webhook,
+  KeyRound,
+  Eye,
+  EyeOff,
+  History,
+  Copy,
+  Check,
+  Zap,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -96,6 +105,45 @@ interface OrdersPageResponse {
   page: number;
   pageSize: number;
   pageCount: number;
+}
+
+// ===== Cổng thanh toán VietQR (webhook Casso/SePay) =====
+
+interface GatewayConfig {
+  ok: boolean;
+  endpoint: string;
+  secret: string;
+  auth: { hmacHeader: string; hmacAlgo: string; secretQuery: string; altQuery: string };
+  bank: { name: string; short: string; accountNo: string; accountName: string };
+  ttlMinutes: number;
+}
+
+interface PaymentRowData {
+  id: string;
+  email: string;
+  content: string;
+  amount: number;
+  status: 'pending' | 'paid' | 'expired';
+  createdAt: number;
+  expiresAt: number;
+  paidAt: number | null;
+  result: { amount?: number; bonus?: number; balance?: number; source?: string } | null;
+}
+
+interface WebhookLogRow {
+  id: number;
+  ts: number;
+  ip: string | null;
+  provider: string;
+  ok: number;
+  reason: string | null;
+  content: string | null;
+  amount: number | null;
+}
+
+function fmtGatewayTime(ts: number): string {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('vi-VN', { hour12: false });
 }
 
 const PROTECTED_EMAIL = 'admin@luongkun.io';
@@ -169,8 +217,8 @@ export default function AdminPage() {
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjusting, setAdjusting] = useState(false);
 
-  // --- tab: Người dùng / Đơn hàng ---
-  const [tab, setTab] = useState<'users' | 'orders'>('users');
+  // --- tab: Người dùng / Đơn hàng / Cổng thanh toán ---
+  const [tab, setTab] = useState<'users' | 'orders' | 'payments'>('users');
 
   // --- danh sách đơn hàng (server-side, lọc trạng thái + tìm kiếm) ---
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -257,6 +305,99 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin && tab === 'orders') fetchOrders();
   }, [fetchOrders, isAdmin, tab]);
+
+  // --- cổng thanh toán: config webhook + giao dịch + log ---
+  const [gwConfig, setGwConfig] = useState<GatewayConfig | null>(null);
+  const [payments, setPayments] = useState<PaymentRowData[]>([]);
+  const [paymentsTotal, setPaymentsTotal] = useState(0);
+  const [logs, setLogs] = useState<WebhookLogRow[]>([]);
+  const [gwLoading, setGwLoading] = useState(true);
+  const [secretRevealed, setSecretRevealed] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [customSecret, setCustomSecret] = useState('');
+  const [secretBusy, setSecretBusy] = useState(false);
+  const [simRow, setSimRow] = useState<string | null>(null);
+
+  const fetchGateway = useCallback(async () => {
+    setGwLoading(true);
+    try {
+      const [cfg, pay, lg] = await Promise.all([
+        api<GatewayConfig>('/admin/payments/config'),
+        api<{ ok: boolean; payments: PaymentRowData[]; total: number }>('/admin/payments?limit=25'),
+        api<{ ok: boolean; logs: WebhookLogRow[] }>('/admin/payments/logs?limit=50'),
+      ]);
+      setGwConfig(cfg);
+      setPayments(pay.payments || []);
+      setPaymentsTotal(pay.total || 0);
+      setLogs(lg.logs || []);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi không xác định';
+      showToast({ type: 'error', title: 'Không tải được cấu hình cổng thanh toán', message: msg });
+    } finally {
+      setGwLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (isAdmin && tab === 'payments') fetchGateway();
+  }, [fetchGateway, isAdmin, tab]);
+
+  const copyGatewayText = (text: string, key: string, label: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedField(key);
+        showToast({ type: 'success', title: `Đã sao chép ${label}` });
+        setTimeout(() => setCopiedField((f) => (f === key ? null : f)), 1800);
+      })
+      .catch(() => showToast({ type: 'error', title: 'Không thể sao chép' }));
+  };
+
+  /** Đặt secret tuỳ ý (dán API key Casso/SePay) hoặc để trống = xoay ngẫu nhiên */
+  const applySecret = async (custom?: string) => {
+    if (secretBusy) return;
+    if (custom && !/^[A-Za-z0-9_-]{12,128}$/.test(custom)) {
+      showToast({
+        type: 'error',
+        title: 'Secret không hợp lệ',
+        message: '12–128 ký tự: chữ, số, gạch dưới/giữa (API key Casso thường là UUID)',
+      });
+      return;
+    }
+    if (!custom && !confirm('Xoay webhook secret mới? Secret cũ sẽ vô hiệu ngay lập tức.')) return;
+    setSecretBusy(true);
+    try {
+      const res = await api<{ ok: boolean; secret: string }>('/admin/payments/config/secret', {
+        method: 'POST',
+        body: custom ? { secret: custom } : {},
+      });
+      setGwConfig((c) => (c ? { ...c, secret: res.secret } : c));
+      setCustomSecret('');
+      setSecretRevealed(true);
+      showToast({ type: 'success', title: custom ? 'Đã đặt webhook secret mới' : 'Đã xoay secret ngẫu nhiên' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      showToast({ type: 'error', title: 'Không đổi được secret', message: msg });
+    } finally {
+      setSecretBusy(false);
+    }
+  };
+
+  /** Admin mô phỏng nhận tiền cho 1 mã pending — test flow khi chưa nối ngân hàng */
+  const simulatePayment = async (row: PaymentRowData) => {
+    if (simRow) return;
+    setSimRow(row.id);
+    try {
+      await api(`/payments/${row.id}/simulate`, { method: 'POST' });
+      showToast({ type: 'success', title: `Đã mô phỏng nhận tiền ${row.content}`, message: `+${formatNumber(row.amount)}đ cho ${row.email}` });
+      fetchGateway();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      showToast({ type: 'error', title: 'Mô phỏng thất bại', message: msg });
+    } finally {
+      setSimRow(null);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -572,7 +713,9 @@ export default function AdminPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {tab === 'users'
                 ? `Quản lý tài khoản, số dư và quyền hạn · ${formatNumber(total)} người dùng`
-                : `Chuyển dữ liệu đơn hàng cho khách · ${formatNumber(ordersTotal)} đơn`}
+                : tab === 'orders'
+                  ? `Chuyển dữ liệu đơn hàng cho khách · ${formatNumber(ordersTotal)} đơn`
+                  : `VietQR động · webhook đối soát tự động · ${formatNumber(paymentsTotal)} giao dịch`}
             </p>
             {/* Tab chuyển đổi */}
             <div className="flex items-center gap-1 mt-3 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl w-fit" role="tablist" aria-label="Chọn mục quản trị">
@@ -602,6 +745,19 @@ export default function AdminPage() {
                 <Package className="w-4 h-4" />
                 Đơn hàng
               </button>
+              <button
+                role="tab"
+                aria-selected={tab === 'payments'}
+                onClick={() => setTab('payments')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  tab === 'payments'
+                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <Landmark className="w-4 h-4" />
+                Cổng thanh toán
+              </button>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -620,7 +776,8 @@ export default function AdminPage() {
             <button
               onClick={() => {
                 if (tab === 'users') fetchUsers();
-                else fetchOrders();
+                else if (tab === 'orders') fetchOrders();
+                else fetchGateway();
               }}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
@@ -1138,6 +1295,353 @@ export default function AdminPage() {
               </button>
             </nav>
           </div>
+        </div>
+      </AnimatedSection>
+      )}
+
+      {/* ---------- TAB CỔNG THANH TOÁN: VietQR động + webhook bảo mật ---------- */}
+      {tab === 'payments' && (
+      <AnimatedSection delay={100}>
+        <div className="space-y-6">
+          {gwLoading && !gwConfig ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Đang tải cấu hình cổng thanh toán…
+            </div>
+          ) : !gwConfig ? (
+            <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
+              Không tải được cấu hình — bấm Làm mới để thử lại.
+            </div>
+          ) : (
+            <>
+              {/* ===== Card 1: Cấu hình webhook ===== */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-2.5">
+                  <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/30">
+                    <Webhook className="w-4.5 h-4.5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-bold text-gray-800 dark:text-white">Webhook nhận tiền (bảo mật bắt buộc)</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      HMAC-SHA256 hoặc secret · rate-limit 30 req/phút/IP · audit toàn bộ request · idempotent
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Đang bảo vệ
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5 space-y-4">
+                  {/* Endpoint */}
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      URL webhook (dán vào Casso / SePay)
+                    </label>
+                    <div className="mt-1.5 flex items-center gap-2 bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5">
+                      <code className="flex-1 min-w-0 truncate text-sm font-mono text-blue-600 dark:text-blue-400">
+                        {`${window.location.origin}${gwConfig.endpoint}`}
+                      </code>
+                      <button
+                        onClick={() => copyGatewayText(`${window.location.origin}${gwConfig.endpoint}`, 'endpoint', 'URL webhook')}
+                        className="flex-shrink-0 p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/20 transition-colors"
+                        aria-label="Sao chép URL webhook"
+                      >
+                        {copiedField === 'endpoint' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Secret */}
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      Webhook secret
+                    </label>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5">
+                        <code className="flex-1 min-w-0 truncate text-sm font-mono text-gray-700 dark:text-gray-300">
+                          {secretRevealed ? gwConfig.secret : '•'.repeat(Math.min(24, gwConfig.secret.length))}
+                        </code>
+                        <button
+                          onClick={() => setSecretRevealed((v) => !v)}
+                          className="flex-shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                          aria-label={secretRevealed ? 'Ẩn secret' : 'Hiện secret'}
+                        >
+                          {secretRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => copyGatewayText(gwConfig.secret, 'secret', 'webhook secret')}
+                          className="flex-shrink-0 p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/20 transition-colors"
+                          aria-label="Sao chép secret"
+                        >
+                          {copiedField === 'secret' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => applySecret()}
+                        disabled={secretBusy}
+                        className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 disabled:opacity-50 transition-colors"
+                      >
+                        {secretBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                        Xoay secret
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400 dark:text-gray-500">
+                      Cách xác thực (1 trong 2): <strong>header</strong>{' '}
+                      <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px]">x-casso-signature</code>{' '}
+                      = HMAC-SHA256 hex của body · hoặc <strong>query</strong>{' '}
+                      <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px]">?secret=…</code>{' '}
+                      (SePay: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px]">?api_key=…</code>)
+                    </p>
+                  </div>
+
+                  {/* Đặt secret tuỳ ý = dán API key Casso/SePay */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 p-3.5 rounded-xl border border-dashed border-violet-300 dark:border-violet-500/40 bg-violet-50/60 dark:bg-violet-500/10">
+                    <div className="flex-1">
+                      <label className="text-xs font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        Dán API key của Casso / SePay (tuỳ chọn)
+                      </label>
+                      <input
+                        type="text"
+                        value={customSecret}
+                        onChange={(e) => setCustomSecret(e.target.value)}
+                        placeholder="VD: c2e11d97-a1b2-… (API key Casso) hoặc key SePay"
+                        className="mt-1.5 w-full px-3 py-2 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                        aria-label="API key cổng thanh toán"
+                      />
+                    </div>
+                    <button
+                      onClick={() => applySecret(customSecret.trim())}
+                      disabled={secretBusy || !customSecret.trim()}
+                      className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-600 shadow-lg shadow-fuchsia-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100 transition-all"
+                    >
+                      Đặt làm secret
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== Card 2: Tài khoản nhận tiền + hướng dẫn nối cổng ===== */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Tài khoản */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/30">
+                      <Landmark className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <h2 className="font-bold text-gray-800 dark:text-white text-sm">Tài khoản nhận tiền</h2>
+                  </div>
+                  <div className="p-4 space-y-2.5 text-sm">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">Ngân hàng</span>
+                      <span className="font-semibold text-gray-800 dark:text-white">{gwConfig.bank.name} ({gwConfig.bank.short})</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">Số tài khoản</span>
+                      <button
+                        onClick={() => copyGatewayText(gwConfig.bank.accountNo, 'stk', 'số tài khoản')}
+                        className="font-mono font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        {gwConfig.bank.accountNo}
+                        {copiedField === 'stk' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 opacity-50" />}
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">Chủ TK</span>
+                      <span className="font-semibold text-gray-800 dark:text-white truncate">{gwConfig.bank.accountName}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">Mã QR sống</span>
+                      <span className="font-semibold text-gray-800 dark:text-white">{gwConfig.ttlMinutes} phút</span>
+                    </div>
+                    <div className="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700 flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                      QR VietQR chuẩn Napas — app ngân hàng quét tự điền STK + tiền + nội dung
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hướng dẫn Casso */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/30">
+                      <Zap className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <h2 className="font-bold text-gray-800 dark:text-white text-sm">Nối Casso (tự động nhất)</h2>
+                  </div>
+                  <ol className="p-4 space-y-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300 list-decimal list-inside">
+                    <li>Đăng ký <strong>casso.vn</strong> → Kết nối tài khoản Vietcombank <span className="font-mono">{gwConfig.bank.accountNo}</span></li>
+                    <li>Mục <strong>Tích hợp → API</strong> → tạo API key</li>
+                    <li>Dán API key vào ô "Dán API key Casso" bên trên → Đặt làm secret</li>
+                    <li>Mục <strong>Webhook</strong> → thêm URL webhook bên trên, sự kiện <em>"Khi có giao dịch nhận tiền"</em></li>
+                    <li>Chuyển thử 10.000đ với nội dung <span className="font-mono">NAPxxxxxx</span> — tiền tự cộng!</li>
+                  </ol>
+                </div>
+
+                {/* Hướng dẫn SePay */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-teal-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/30">
+                      <Send className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <h2 className="font-bold text-gray-800 dark:text-white text-sm">Nối SePay</h2>
+                  </div>
+                  <ol className="p-4 space-y-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300 list-decimal list-inside">
+                    <li>Đăng ký <strong>sepay.vn</strong> → thêm tài khoản ngân hàng VCB <span className="font-mono">{gwConfig.bank.accountNo}</span></li>
+                    <li>Mục <strong>Tài khoản ngân hàng → Webhook</strong> → tạo mới</li>
+                    <li>Dán URL webhook bên trên · Kiểu dữ liệu: <em>"Tất cả"</em> · Khi nhận tiền</li>
+                    <li>API key của SePay dán vào ô secret bên trên (gửi kèm <span className="font-mono">?api_key=…</span>)</li>
+                    <li>Webhook URL test có sẵn — bấm thử để kiểm tra kết nối</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* ===== Card 3: Giao dịch VietQR ===== */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/30">
+                      <Landmark className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-800 dark:text-white text-sm">Giao dịch VietQR ({formatNumber(paymentsTotal)})</h2>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">25 giao dịch gần nhất</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900/95 backdrop-blur z-10">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        <th className="px-4 py-2.5 font-semibold">Mã CK</th>
+                        <th className="px-4 py-2.5 font-semibold">Khách</th>
+                        <th className="px-4 py-2.5 font-semibold text-right">Số tiền</th>
+                        <th className="px-4 py-2.5 font-semibold">Trạng thái</th>
+                        <th className="px-4 py-2.5 font-semibold">Thời gian</th>
+                        <th className="px-4 py-2.5 font-semibold text-right">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      {payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">
+                            Chưa có giao dịch VietQR nào
+                          </td>
+                        </tr>
+                      ) : (
+                        payments.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                            <td className="px-4 py-2.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">{p.content}</td>
+                            <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300 max-w-[160px] truncate" title={p.email}>{p.email}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-gray-800 dark:text-white whitespace-nowrap">{formatNumber(p.amount)}đ</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              {p.status === 'paid' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> Đã nhận
+                                </span>
+                              )}
+                              {p.status === 'pending' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                                  <Clock className="w-3 h-3" /> Chờ CK
+                                </span>
+                              )}
+                              {p.status === 'expired' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-semibold">
+                                  <XCircle className="w-3 h-3" /> Hết hạn
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                              {fmtGatewayTime(p.status === 'paid' ? p.paidAt || p.createdAt : p.createdAt)}
+                              {p.result?.source && (
+                                <span className="ml-1 text-[10px] text-gray-400 dark:text-gray-500">({p.result.source})</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              {p.status === 'pending' && (
+                                <button
+                                  onClick={() => simulatePayment(p)}
+                                  disabled={simRow === p.id}
+                                  title="Mô phỏng webhook ngân hàng báo tiền về (test khi chưa nối cổng)"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-violet-600 dark:text-violet-400 border border-violet-300 dark:border-violet-500/40 hover:bg-violet-50 dark:hover:bg-violet-500/10 disabled:opacity-50 transition-colors"
+                                >
+                                  {simRow === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                                  Mô phỏng
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ===== Card 4: Log webhook (audit) ===== */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-gray-700 to-gray-900 dark:from-gray-600 dark:to-gray-800 rounded-xl flex items-center justify-center shadow-md">
+                      <History className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-800 dark:text-white text-sm">Log webhook (audit bảo mật)</h2>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">50 request gần nhất — cả bị chặn lẫn thành công</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900/95 backdrop-blur z-10">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        <th className="px-4 py-2.5 font-semibold">Thời gian</th>
+                        <th className="px-4 py-2.5 font-semibold">IP</th>
+                        <th className="px-4 py-2.5 font-semibold">Nguồn</th>
+                        <th className="px-4 py-2.5 font-semibold">Kết quả</th>
+                        <th className="px-4 py-2.5 font-semibold">Chi tiết</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      {logs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">
+                            Chưa có request webhook nào — nối Casso/SePay hoặc dùng nút Mô phỏng
+                          </td>
+                        </tr>
+                      ) : (
+                        logs.map((l) => (
+                          <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                            <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtGatewayTime(l.ts)}</td>
+                            <td className="px-4 py-2.5 text-xs font-mono text-gray-600 dark:text-gray-300 whitespace-nowrap">{l.ip || '—'}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{l.provider}</span>
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              {l.ok ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> OK
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold">
+                                  <XCircle className="w-3 h-3" /> Chặn
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 max-w-[320px] truncate" title={l.reason || ''}>
+                              {l.reason || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </AnimatedSection>
       )}

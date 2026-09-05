@@ -12,14 +12,15 @@ import { insertPaymentRequest } from './db.js';
 //  5. Web client poll trạng thái (cùng lúc nhận realtime user:updated) → UI cập nhật
 // =====================================================================
 
-// ===== Cấu hình tài khoản nhận tiền =====
-// ⚠️ PLACEHOLDER: thay bằng STK thật của shop khi lên production.
-// (ghi chú: giữ cùng chủ TK với phần MoMo ở TopUpPage cho nhất quán)
+// ===== Cấu hình tài khoản nhận tiền (THẬT) =====
+// STK Vietcombank của shop — QR VietQR nhúng STK này, mọi app ngân hàng quét
+// sẽ chuyển thẳng về đúng tài khoản (không qua trung gian).
+// ⚠️ Muốn đổi: sửa accountNo/accountName rồi restart server.
 export const BANK = {
   bin: '970436', // Vietcombank — mã BIN Napas
   name: 'Vietcombank',
   short: 'VCB',
-  accountNo: '0368852235', // ⚠️ số demo — thay bằng STK thật
+  accountNo: '1071100102', // STK thật — user cấu hình
   accountName: 'NGUYEN THE LUONG',
 };
 

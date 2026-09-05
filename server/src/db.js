@@ -71,6 +71,25 @@ db.exec(`
     paidAt INTEGER,
     FOREIGN KEY (email) REFERENCES users(email)
   );
+  -- Cấu hình hệ thống (key–value): lưu webhook secret của cổng thanh toán…
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
+  -- Audit log MỌI request webhook về cổng thanh toán (thành công lẫn bị chặn)
+  CREATE TABLE IF NOT EXISTS webhook_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    ip TEXT,
+    provider TEXT,        -- casso | sepay | custom | unknown
+    ok INTEGER NOT NULL,  -- 1 = đã cộng tiền (hoặc idempotent) · 0 = bị từ chối
+    reason TEXT,          -- mô tả kết quả đối soát
+    content TEXT,         -- mã NAPxxxxxx (nếu tách được)
+    amount INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_webhook_logs_ts ON webhook_logs(ts DESC);
+
   CREATE INDEX IF NOT EXISTS idx_payment_email ON payment_requests(email, createdAt);
 `);
 
@@ -250,6 +269,47 @@ export function expireStalePayments() {
   db.prepare("UPDATE payment_requests SET status = 'expired' WHERE status = 'pending' AND expiresAt < ?").run(
     Date.now()
   );
+}
+
+/** Danh sách yêu cầu thanh toán gần nhất (bảng theo dõi của admin) */
+export function listPaymentRequests(limit = 20) {
+  return db.prepare('SELECT * FROM payment_requests ORDER BY createdAt DESC LIMIT ?').all(limit);
+}
+
+export function countPaymentRequests() {
+  return db.prepare('SELECT COUNT(*) AS c FROM payment_requests').get().c;
+}
+
+// ============================================================
+//  APP SETTINGS (key–value) + WEBHOOK AUDIT LOG
+// ============================================================
+
+export function getSetting(key) {
+  return db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key)?.value ?? null;
+}
+
+export function setSetting(key, value) {
+  db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(key, String(value));
+}
+
+/** Ghi 1 dòng audit log webhook (thành công lẫn bị chặn đều ghi) */
+export function insertWebhookLog(entry) {
+  db.prepare(
+    'INSERT INTO webhook_logs (ts, ip, provider, ok, reason, content, amount) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(
+    entry.ts || Date.now(),
+    entry.ip || null,
+    entry.provider || 'unknown',
+    entry.ok ? 1 : 0,
+    entry.reason || null,
+    entry.content || null,
+    Number.isFinite(entry.amount) ? entry.amount : null
+  );
+}
+
+/** Log webhook gần nhất (mới nhất trước) */
+export function getWebhookLogs(limit = 50) {
+  return db.prepare('SELECT * FROM webhook_logs ORDER BY id DESC LIMIT ?').all(limit);
 }
 
 export default db;

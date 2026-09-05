@@ -14,7 +14,6 @@ import {
   Check,
   Clock,
   ShieldCheck,
-  FlaskConical,
   RotateCcw,
   Landmark,
 } from 'lucide-react';
@@ -137,7 +136,6 @@ function BankQrModal({
   const [result, setResult] = useState<TopupResult | null>(payment.result ?? null);
   // Init bằng TTL (pure) — interval dưới sẽ hiệu chỉnh về giờ thực trong 1 giây đầu
   const [secondsLeft, setSecondsLeft] = useState(payment.expiresAt - payment.createdAt);
-  const [simulating, setSimulating] = useState(false);
   const paidHandled = useRef(false);
 
   // View hiển thị: pending + hết giờ đếm ngược → expired (derive, không cần setState)
@@ -188,28 +186,6 @@ function BankQrModal({
       .writeText(text)
       .then(() => showToast({ type: 'success', title: `Đã sao chép ${label}` }))
       .catch(() => showToast({ type: 'error', title: 'Không thể sao chép' }));
-  };
-
-  // Mô phỏng webhook ngân hàng — test E2E khi chưa kết nối cổng thanh toán thật
-  const simulateWebhook = async () => {
-    if (simulating || view !== 'pending') return;
-    setSimulating(true);
-    try {
-      await api(`/payments/${payment.id}/simulate`, { method: 'POST' });
-      const res = await api<{ ok: boolean; payment: PaymentRequest }>(`/payments/${payment.id}`);
-      if (res.payment.status === 'paid' && res.payment.result) {
-        setStatus('paid');
-        setResult(res.payment.result);
-        if (!paidHandled.current) {
-          paidHandled.current = true;
-          onPaid(res.payment.result);
-        }
-      }
-    } catch (err) {
-      showToast({ type: 'error', title: 'Mô phỏng thất bại', message: err instanceof Error ? err.message : '' });
-    } finally {
-      setSimulating(false);
-    }
   };
 
   const InfoRowProps = { onCopy: copy };
@@ -344,18 +320,9 @@ function BankQrModal({
 
               <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-400 dark:text-gray-500 px-1">
                 <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                Hệ thống tự động cộng tiền khi nhận được chuyển khoản (webhook ngân hàng) — chuyển ĐÚNG nội dung để đối soát ngay.
+                Hệ thống tự động đối soát qua webhook ngân hàng (Casso/SePay) khi tiền về tài khoản
+                — chuyển ĐÚNG nội dung để được cộng tiền ngay, không cần gửi bill.
               </p>
-
-              <button
-                onClick={simulateWebhook}
-                disabled={simulating}
-                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-violet-600 dark:text-violet-400 border border-dashed border-violet-300 dark:border-violet-500/40 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-colors disabled:opacity-50"
-                title="Mô phỏng ngân hàng gửi webhook — chỉ để test khi chưa kết nối cổng thanh toán"
-              >
-                <FlaskConical className="w-3.5 h-3.5" />
-                {simulating ? 'Đang mô phỏng…' : 'Mô phỏng webhook nhận tiền (test)'}
-              </button>
             </>
           )}
         </div>

@@ -35,7 +35,21 @@ import {
   getPaymentRequestByContent,
   setPaymentStatus,
   expireStalePayments,
+  listPaymentRequests,
+  countPaymentRequests,
+  insertWebhookLog,
+  getWebhookLogs,
 } from './db.js';
+import {
+  getWebhookSecret,
+  setWebhookSecret,
+  rotateWebhookSecret,
+  verifyWebhookRequest,
+  extractTransfer,
+  webhookRateOk,
+  clientIp,
+} from './webhook.js';
+import { BANK, PAYMENT_TTL_MS } from './payments.js';
 
 // ---------- Email ----------
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
@@ -172,7 +186,12 @@ await seedAdmin();
 // ---------- App ----------
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Giữ raw body để xác thực HMAC-SHA256 (chữ ký tính trên byte gốc của body)
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = Buffer.from(buf);
+  },
+}));
 
 // ----- Security headers -----
 app.use((req, res, next) => {
@@ -453,11 +472,13 @@ app.post('/api/balance/topup', auth, (req, res) => {
 });
 
 // =====================================================================
-//  PAYMENTS — VietQR động (chuyển khoản ngân hàng)
+//  PAYMENTS — VietQR động (chuyển khoản ngân hàng) + BẢO MẬT WEBHOOK
 //  1) POST /api/payments/create      : sinh QR + nội dung CK duy nhất
 //  2) GET  /api/payments/:id          : poll trạng thái (pending/paid/expired)
-//  3) POST /api/payments/webhook     : ngân hàng/cổng thanh toán báo tiền về
-//  4) POST /api/payments/:id/simulate: mô phỏng webhook (test E2E khi chưa nối ngân hàng)
+//  3) POST /api/payments/webhook     : ngân hàng/cổng thanh toán (Casso/SePay) báo tiền về
+//     → BẮT BUỘC HMAC signature hoặc secret · rate-limit · audit log · idempotent
+//  4) POST /api/payments/:id/simulate: mô phỏng webhook — CHỈ ADMIN (công cụ test)
+//  5) /api/admin/payments/*          : admin quản lý secret, xem giao dịch & log webhook
 // =====================================================================
 
 // (1) User bấm Thanh toán → server tạo mã QR động
@@ -497,33 +518,149 @@ function creditPayment(row, source) {
   return { status: 200, data: result };
 }
 
-// (3) Webhook từ ngân hàng / cổng thanh toán (Casso, SePay, gateway tự build…)
-//     Body: { content: 'NAP482913', amount: 50000, gateway?: 'vcb' }
-//     Bảo mật: đặt env PAYMENT_WEBHOOK_SECRET → yêu cầu header x-webhook-secret khớp
+// (3) Webhook từ ngân hàng / cổng thanh toán THẬT (Casso, SePay, gateway tự build)
+//     Bảo mật BẮT BUỘC — mọi request phải mang HMAC signature hoặc secret:
+//     · HMAC:  header x-casso-signature = hex HMAC-SHA256(rawBody, webhook secret)
+//     · Secret: query ?secret= / ?api_key= hoặc header x-webhook-secret
+//     Kèm: rate-limit 30 req/phút/IP · audit log mọi request · idempotent · chặn sai số tiền
 app.post('/api/payments/webhook', (req, res) => {
-  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (secret && req.get('x-webhook-secret') !== secret) {
-    return res.status(401).json({ error: 'Webhook secret không hợp lệ' });
+  const ip = clientIp(req);
+  const { content, amount, provider, ref } = extractTransfer(req);
+
+  const log = (ok, reason, extra = {}) =>
+    insertWebhookLog({ ts: Date.now(), ip, provider, ok, reason, content, amount, ...extra });
+
+  // 1) Rate limit — chống quét mã NAP
+  if (!webhookRateOk(ip)) {
+    log(false, 'Từ chối: vượt rate limit (30 req/phút/IP)');
+    return res.status(429).json({ error: 'Quá nhiều request từ IP của bạn, thử lại sau' });
   }
-  const { content, amount, gateway } = req.body || {};
-  if (!content) return res.status(400).json({ error: 'Thiếu nội dung chuyển khoản' });
+
+  // 2) Xác thực (HMAC hoặc secret) — timing-safe
+  const auth = verifyWebhookRequest(req);
+  if (!auth.ok) {
+    log(false, `Từ chối: ${auth.reason}`);
+    return res.status(401).json({ error: auth.reason });
+  }
+
+  // 3) Phải tách được mã đối soát NAPxxxxxx từ nội dung CK
+  if (!content) {
+    log(false, 'Từ chối: không đọc được mã đối soát NAPxxxxxx trong nội dung CK');
+    return res.status(400).json({ error: 'Không đọc được mã đối soát trong nội dung chuyển khoản' });
+  }
+
+  // 4) Tìm yêu cầu thanh toán khớp (content UNIQUE — đối soát)
   const row = getPaymentRequestByContent(content);
-  if (!row) return res.status(404).json({ error: 'Không tìm thấy giao dịch khớp nội dung' });
-  const value = Number(amount);
-  if (Number.isFinite(value) && value > 0 && value !== row.amount) {
+  if (!row) {
+    log(false, `Từ chối: không có giao dịch nào khớp mã ${content}`);
+    return res.status(404).json({ error: `Không tìm thấy giao dịch khớp nội dung ${content}` });
+  }
+
+  // 5) Cổng thật luôn gửi số tiền — thiếu hoặc sai là từ chối (chặn "nạp ảo" số tiền)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    log(false, `Từ chối: số tiền thiếu/không hợp lệ (${amount})`);
+    return res.status(400).json({ error: 'Thiếu số tiền chuyển khoản trong dữ liệu webhook' });
+  }
+  if (amount !== row.amount) {
+    log(false, `Từ chối: số tiền ${amount}đ ≠ ${row.amount}đ của mã ${content}`);
     return res.status(400).json({ error: `Số tiền không khớp (kỳ vọng ${row.amount}đ)` });
   }
-  const outcome = creditPayment(row, `webhook${gateway ? ':' + gateway : ''}`);
+
+  // 6) Mã đã hết hạn thì không cộng nữa (tiền về sau phải xử lý tay)
+  if (row.status === 'expired') {
+    log(false, `Từ chối: mã ${content} đã hết hạn — liên hệ quản trị`);
+    return res.status(400).json({ error: 'Mã đã hết hạn, vui lòng liên hệ quản trị viên' });
+  }
+
+  // 7) Đối soát thành công → cộng tiền (idempotent bên trong creditPayment)
+  const outcome = creditPayment(row, `webhook:${provider}`);
+  if (outcome.status === 200) {
+    log(true, outcome.data?.duplicate
+      ? `Idempotent: mã ${content} đã được cộng trước đó`
+      : `Thành công: +${row.amount}đ cho ${row.email} · nguồn ${provider}${ref ? ' · ref ' + ref : ''}`);
+  } else {
+    log(false, `Lỗi khi cộng tiền mã ${content}: ${JSON.stringify(outcome.data)}`);
+  }
   res.status(outcome.status).json(outcome.data);
 });
 
-// (4) Mô phỏng webhook — dùng để TEST toàn bộ flow khi chưa kết nối ngân hàng thật
+// (4) Mô phỏng webhook — CHỈ QUẢN TRỊ VIÊN (công cụ test khi chưa nối ngân hàng thật;
+//     nếu để user tự mô phỏng được thì ai cũng tự cộng tiền cho mình = lỗ bảo mật)
 app.post('/api/payments/:id/simulate', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') {
+    return res.status(403).json({ error: 'Chỉ quản trị viên được mô phỏng webhook' });
+  }
   const row = getPaymentRequest(req.params.id);
-  if (!row || row.email !== req.user.email) return res.status(404).json({ error: 'Không tìm thấy giao dịch' });
+  if (!row) return res.status(404).json({ error: 'Không tìm thấy giao dịch' });
   if (row.status === 'expired') return res.status(400).json({ error: 'Mã đã hết hạn — tạo mã mới' });
+  insertWebhookLog({
+    ts: Date.now(),
+    ip: clientIp(req),
+    provider: 'admin-simulate',
+    ok: 1,
+    reason: `Admin mô phỏng nhận tiền mã ${row.content} (+${row.amount}đ)`,
+    content: row.content,
+    amount: row.amount,
+  });
   const outcome = creditPayment(row, 'simulate');
   res.status(outcome.status).json(outcome.data);
+});
+
+// (5) Quản trị cổng thanh toán — admin xem/đổi secret, theo dõi giao dịch & log webhook
+app.get('/api/admin/payments/config', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') return res.status(403).json({ error: 'Chỉ quản trị viên' });
+  res.json({
+    ok: true,
+    endpoint: '/api/payments/webhook',
+    secret: getWebhookSecret(),
+    auth: {
+      hmacHeader: 'x-casso-signature',
+      hmacAlgo: 'HMAC-SHA256 (hex) của raw body',
+      secretQuery: 'secret',
+      altQuery: 'api_key (SePay)',
+    },
+    bank: { name: BANK.name, short: BANK.short, accountNo: BANK.accountNo, accountName: BANK.accountName },
+    ttlMinutes: Math.round(PAYMENT_TTL_MS / 60000),
+  });
+});
+
+/** Đặt secret tuỳ ý (dán API key Casso/SePay) — bỏ body = xoay ngẫu nhiên mới */
+app.post('/api/admin/payments/config/secret', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') return res.status(403).json({ error: 'Chỉ quản trị viên' });
+  try {
+    const secret = req.body && req.body.secret ? setWebhookSecret(String(req.body.secret)) : rotateWebhookSecret();
+    res.json({ ok: true, secret });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/payments', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') return res.status(403).json({ error: 'Chỉ quản trị viên' });
+  const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 100);
+  const payments = listPaymentRequests(limit).map((p) => ({
+    id: p.id,
+    email: p.email,
+    content: p.content,
+    amount: p.amount,
+    status: p.status,
+    createdAt: p.createdAt,
+    expiresAt: p.expiresAt,
+    paidAt: p.paidAt,
+    result: p.result ? JSON.parse(p.result) : null,
+  }));
+  res.json({ ok: true, payments, total: countPaymentRequests() });
+});
+
+app.get('/api/admin/payments/logs', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') return res.status(403).json({ error: 'Chỉ quản trị viên' });
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  res.json({ ok: true, logs: getWebhookLogs(limit) });
 });
 
 // ----- Products -----
