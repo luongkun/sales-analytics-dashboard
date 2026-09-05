@@ -6,7 +6,31 @@ import { useToast } from '../context/ToastContext';
 import { formatNumber } from '../data/salesData';
 import Avatar, { AVATAR_GRADIENTS } from '../components/Avatar';
 import AnimatedSection from '../components/AnimatedSection';
-import { getVipInfo, VIP_TIERS } from '../utils/vip';
+import { getVipInfo, VIP_TIERS, VipTierDef } from '../utils/vip';
+
+/** Huy hiệu hạng VIP (góc phải thẻ "Hạng VIP") — hiệu ứng escalated theo cấp:
+ *  VIP1 Đồng: nâu tĩnh, không hiệu ứng
+ *  VIP2 Bạc:  vệt ánh sáng lướt nhẹ
+ *  VIP3 Vàng: hào quang nhịp + 3 tia lấp lánh
+ *  VIP4 Kim Cương: gradient tuôn + quầng conic + 5 tia lấp lánh */
+function VipRankBadge({ tier }: { tier: VipTierDef }) {
+  const fx =
+    tier.level === 2 ? 'vip-fx-silver' : tier.level === 3 ? 'vip-fx-gold' : tier.level === 4 ? 'vip-fx-diamond' : '';
+  const sparks = tier.level === 3 ? 3 : tier.level === 4 ? 5 : 0;
+  return (
+    <span
+      className={`vip-rank-badge ${fx} relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-white bg-gradient-to-r ${tier.gradient} shadow-md flex-shrink-0`}
+    >
+      <span className="vip-sheen" aria-hidden="true" />
+      <Crown className="w-4 h-4" />
+      VIP {tier.level} · {tier.name}
+      {sparks > 0 &&
+        Array.from({ length: sparks }).map((_, i) => (
+          <span key={i} className={`vip-spark s${i + 1}`} aria-hidden="true" />
+        ))}
+    </span>
+  );
+}
 
 function ProfilePageInner() {
   const { user, updateProfile } = useAuth();
@@ -152,16 +176,7 @@ function ProfilePageInner() {
               </div>
               {(() => {
                 const t = getVipInfo(user.totalTopup ?? 0).tier;
-                return t ? (
-                  <span
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-white bg-gradient-to-r ${t.gradient} shadow-md flex-shrink-0`}
-                  >
-                    <Crown className="w-4 h-4" />
-                    VIP {t.level} · {t.name}
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">Chưa có hạng</span>
-                );
+                return t ? <VipRankBadge tier={t} /> : <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0">Chưa có hạng</span>;
               })()}
             </div>
 
