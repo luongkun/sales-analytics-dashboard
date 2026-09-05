@@ -23,6 +23,11 @@ import {
   Minus,
   Crown,
   Sparkles,
+  Send,
+  RotateCcw,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -67,6 +72,32 @@ interface BulkResult {
   skipped?: { email: string; reason: string }[];
 }
 
+interface AdminOrderItem {
+  productId?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+}
+
+interface AdminOrder {
+  id: string;
+  email: string;
+  name: string;
+  items: AdminOrderItem[];
+  total: number;
+  status: string;
+  timestamp: number;
+}
+
+interface OrdersPageResponse {
+  ok: boolean;
+  orders: AdminOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
 const PROTECTED_EMAIL = 'admin@luongkun.io';
 const PAGE_SIZES = [10, 20, 50];
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -89,6 +120,21 @@ function pageList(page: number, pageCount: number): (number | '…')[] {
   out.push(pageCount);
   return out;
 }
+
+function formatOrderDate(ts: number): string {
+  const d = new Date(ts);
+  const date = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  return `${date} · ${time}`;
+}
+
+const ORDER_STATUS_PILL: Record<string, string> = {
+  'Hoàn thành': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  'Đang xử lý': 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  'Đã hủy': 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+};
+
+const ORDER_STATUS_FILTERS = ['Đang xử lý', 'Hoàn thành', 'Đã hủy', 'Tất cả'];
 
 export default function AdminPage() {
   const { user, refreshUser } = useAuth();
@@ -122,6 +168,20 @@ export default function AdminPage() {
   const [adjustMode, setAdjustMode] = useState<'add' | 'sub'>('add');
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjusting, setAdjusting] = useState(false);
+
+  // --- tab: Người dùng / Đơn hàng ---
+  const [tab, setTab] = useState<'users' | 'orders'>('users');
+
+  // --- danh sách đơn hàng (server-side, lọc trạng thái + tìm kiếm) ---
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPageCount, setOrdersPageCount] = useState(1);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [orderStatusFilter, setOrderStatusFilter] = useState('Đang xử lý');
+  const [ordersSearch, setOrdersSearch] = useState('');
+  const [debouncedOrdersSearch, setDebouncedOrdersSearch] = useState('');
+  const [busyOrder, setBusyOrder] = useState<string | null>(null);
 
   const adjustValue = parseInt(adjustAmount, 10) || 0;
   const adjustValid = adjustValue > 0 && (adjustMode === 'add' || adjustValue <= (editingUser?.balance ?? 0));
@@ -157,6 +217,46 @@ export default function AdminPage() {
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
   }, [search]);
+
+  // debounce ô tìm kiếm đơn hàng
+  const ordersSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (ordersSearchTimer.current) clearTimeout(ordersSearchTimer.current);
+    ordersSearchTimer.current = setTimeout(() => {
+      setDebouncedOrdersSearch(ordersSearch.trim());
+      setOrdersPage(1);
+    }, 350);
+    return () => {
+      if (ordersSearchTimer.current) clearTimeout(ordersSearchTimer.current);
+    };
+  }, [ordersSearch]);
+
+  const fetchOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(ordersPage),
+        pageSize: '10',
+        status: orderStatusFilter,
+        q: debouncedOrdersSearch,
+      });
+      const res = await api<OrdersPageResponse>(`/admin/orders?${params.toString()}`);
+      setOrders(res.orders);
+      setOrdersTotal(res.total);
+      setOrdersPageCount(res.pageCount);
+      setOrdersPage(res.page); // server có thể clamp
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi không xác định';
+      showToast({ type: 'error', title: 'Không thể tải danh sách đơn hàng', message: msg });
+    } finally {
+      setOrdersLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordersPage, orderStatusFilter, debouncedOrdersSearch]);
+
+  useEffect(() => {
+    if (isAdmin && tab === 'orders') fetchOrders();
+  }, [fetchOrders, isAdmin, tab]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -205,6 +305,56 @@ export default function AdminPage() {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
   }, [live, isAdmin]);
+
+  // realtime cho tab Đơn hàng: có đơn mới / trạng thái đổi → tự làm mới
+  const fetchOrdersRef = useRef(fetchOrders);
+  fetchOrdersRef.current = fetchOrders;
+  const ordersRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!live || !isAdmin || tab !== 'orders') return;
+    const handle = () => {
+      if (ordersRefreshTimer.current) clearTimeout(ordersRefreshTimer.current);
+      ordersRefreshTimer.current = setTimeout(() => fetchOrdersRef.current(), 400);
+    };
+    const offs = [onRealtime('order:created', handle), onRealtime('analytics:changed', handle)];
+    return () => {
+      offs.forEach((off) => off());
+      if (ordersRefreshTimer.current) clearTimeout(ordersRefreshTimer.current);
+    };
+  }, [live, isAdmin, tab]);
+
+  // ---------- cập nhật trạng thái đơn (admin đã gửi dữ liệu cho khách) ----------
+  const handleSetOrderStatus = async (orderId: string, email: string, status: string) => {
+    if (busyOrder) return;
+    setBusyOrder(orderId);
+    try {
+      await api('/admin/orders/' + encodeURIComponent(orderId), {
+        method: 'PUT',
+        body: { status },
+      });
+      showToast({
+        type: 'success',
+        title:
+          status === 'Hoàn thành'
+            ? `Đơn ${orderId} đã hoàn thành`
+            : status === 'Đã hủy'
+              ? `Đơn ${orderId} đã hủy`
+              : `Đơn ${orderId} mở lại`,
+        message:
+          status === 'Hoàn thành'
+            ? `Đã ghi nhận gửi đầy đủ thông tin cho ${email}.`
+            : status === 'Đang xử lý'
+              ? 'Đơn quay về trạng thái chưa gửi dữ liệu.'
+              : undefined,
+      });
+      await fetchOrders();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi không xác định';
+      showToast({ type: 'error', title: 'Cập nhật trạng thái thất bại', message: msg });
+    } finally {
+      setBusyOrder(null);
+    }
+  };
 
   // ---------- chọn / bỏ chọn ----------
   const selectableUsers = users.filter((u) => u.email !== PROTECTED_EMAIL);
@@ -418,10 +568,41 @@ export default function AdminPage() {
       <AnimatedSection delay={0}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Quản lý người dùng</h1>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Quản trị</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Quản lý tài khoản, số dư và quyền hạn · {formatNumber(total)} người dùng
+              {tab === 'users'
+                ? `Quản lý tài khoản, số dư và quyền hạn · ${formatNumber(total)} người dùng`
+                : `Chuyển dữ liệu đơn hàng cho khách · ${formatNumber(ordersTotal)} đơn`}
             </p>
+            {/* Tab chuyển đổi */}
+            <div className="flex items-center gap-1 mt-3 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl w-fit" role="tablist" aria-label="Chọn mục quản trị">
+              <button
+                role="tab"
+                aria-selected={tab === 'users'}
+                onClick={() => setTab('users')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  tab === 'users'
+                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Người dùng
+              </button>
+              <button
+                role="tab"
+                aria-selected={tab === 'orders'}
+                onClick={() => setTab('orders')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  tab === 'orders'
+                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                Đơn hàng
+              </button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -431,13 +612,16 @@ export default function AdminPage() {
                   ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
               }`}
-              title="Bật/tắt đồng bộ realtime cho bảng người dùng"
+              title="Bật/tắt đồng bộ realtime cho bảng"
             >
               <Wifi className={`w-4 h-4 ${live ? 'animate-pulse' : ''}`} />
               {live ? 'Realtime: BẬT' : 'Realtime: TẮT'}
             </button>
             <button
-              onClick={fetchUsers}
+              onClick={() => {
+                if (tab === 'users') fetchUsers();
+                else fetchOrders();
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
@@ -448,7 +632,7 @@ export default function AdminPage() {
       </AnimatedSection>
 
       {/* Thanh công cụ hàng loạt */}
-      {selected.size > 0 && (
+      {tab === 'users' && selected.size > 0 && (
         <div
           className="flex flex-wrap items-center gap-3 p-4 rounded-2xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/30 animate-fade-in"
           role="toolbar"
@@ -495,6 +679,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {tab === 'users' && (
       <AnimatedSection delay={100}>
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Tìm kiếm + lọc + sắp xếp */}
@@ -740,6 +925,222 @@ export default function AdminPage() {
           </div>
         </div>
       </AnimatedSection>
+      )}
+
+      {/* ---------- TAB ĐƠN HÀNG: chuyển dữ liệu cho khách ---------- */}
+      {tab === 'orders' && (
+      <AnimatedSection delay={100}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {/* Giải thích quy trình + tìm kiếm + lọc trạng thái */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="flex items-start gap-2.5 flex-1 min-w-0 bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 rounded-xl px-3.5 py-2.5">
+              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+                Đơn <strong>Đang xử lý</strong> = shop chưa gửi thông tin tài khoản cho khách.
+                Sau khi gửi đầy đủ dữ liệu, bấm <strong>Đã gửi thông tin</strong> để hoàn tất đơn.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={ordersSearch}
+                  onChange={(e) => setOrdersSearch(e.target.value)}
+                  placeholder="Tìm mã ĐH, email, tên..."
+                  className="bg-transparent border-0 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/60 text-sm text-gray-800 dark:text-white placeholder-gray-400 w-40 sm:w-48"
+                  aria-label="Tìm kiếm đơn hàng"
+                />
+                {ordersSearch !== debouncedOrdersSearch && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 flex-shrink-0" />}
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-2">
+            {ORDER_STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setOrderStatusFilter(s);
+                  setOrdersPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  orderStatusFilter === s
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                aria-pressed={orderStatusFilter === s}
+              >
+                {s}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
+              {orderStatusFilter === 'Đang xử lý' ? 'Hàng đợi gửi dữ liệu' : 'Kết quả lọc'}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            {ordersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-gray-500 dark:text-gray-400">
+                <Package className="w-12 h-12 mb-3 opacity-50" />
+                <p>Không có đơn hàng nào {orderStatusFilter !== 'Tất cả' ? `ở trạng thái "${orderStatusFilter}"` : ''}</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 uppercase text-xs font-semibold tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Mã ĐH</th>
+                    <th className="px-4 py-3 text-left">Khách hàng</th>
+                    <th className="px-4 py-3 text-left">Sản phẩm</th>
+                    <th className="px-4 py-3 text-center">SL</th>
+                    <th className="px-4 py-3 text-right">Tổng tiền</th>
+                    <th className="px-4 py-3 text-left">Ngày đặt</th>
+                    <th className="px-4 py-3 text-center">Trạng thái</th>
+                    <th className="px-4 py-3 text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {orders.map((o) => {
+                    const firstItem = o.items[0];
+                    const extra = o.items.length > 1 ? ` +${o.items.length - 1}` : '';
+                    const qty = o.items.reduce((s, it) => s + (it.quantity && it.quantity > 0 ? it.quantity : 1), 0);
+                    const isBusy = busyOrder === o.id;
+                    return (
+                      <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-white whitespace-nowrap">{o.id}</td>
+                        <td className="px-4 py-3 max-w-[200px]">
+                          <p className="text-gray-700 dark:text-gray-300 truncate font-medium">{o.name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{o.email}</p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[200px] truncate">
+                          {(firstItem?.name ?? '—') + extra}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            ×{qty}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          {formatNumber(o.total)}đ
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatOrderDate(o.timestamp)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${ORDER_STATUS_PILL[o.status] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
+                            {o.status === 'Hoàn thành' && <CheckCircle2 className="w-3 h-3" />}
+                            {o.status === 'Đang xử lý' && <Clock className="w-3 h-3" />}
+                            {o.status === 'Đã hủy' && <XCircle className="w-3 h-3" />}
+                            {o.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {o.status === 'Đang xử lý' ? (
+                              <>
+                                <button
+                                  onClick={() => handleSetOrderStatus(o.id, o.email, 'Hoàn thành')}
+                                  disabled={isBusy || busyOrder !== null}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/25 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                  title="Đánh dấu đã gửi đầy đủ thông tin tài khoản cho khách"
+                                >
+                                  {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                  Đã gửi thông tin
+                                </button>
+                                <button
+                                  onClick={() => handleSetOrderStatus(o.id, o.email, 'Đã hủy')}
+                                  disabled={isBusy || busyOrder !== null}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Hủy đơn hàng"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleSetOrderStatus(o.id, o.email, 'Đang xử lý')}
+                                disabled={isBusy || busyOrder !== null}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                title="Mở lại — đơn chưa hoàn tất gửi dữ liệu"
+                              >
+                                {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                Mở lại
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Phân trang đơn hàng */}
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{ordersTotal === 0 ? 0 : (ordersPage - 1) * 10 + 1}–{Math.min(ordersPage * 10, ordersTotal)}</span> trên{' '}
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{formatNumber(ordersTotal)}</span> đơn
+              <span className="hidden sm:inline"> · trang {ordersPage}/{ordersPageCount}</span>
+            </div>
+            <nav className="flex items-center gap-1" aria-label="Phân trang đơn hàng">
+              <button
+                onClick={() => setOrdersPage(1)}
+                disabled={ordersPage === 1}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Trang đầu"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                disabled={ordersPage === 1}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Trang trước"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {pageList(ordersPage, ordersPageCount).map((p, i) =>
+                p === '…' ? (
+                  <span key={`oe-${i}`} className="px-2 py-1 text-xs text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setOrdersPage(p)}
+                    aria-current={p === ordersPage ? 'page' : undefined}
+                    className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-semibold transition-colors ${
+                      p === ordersPage
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => setOrdersPage((p) => Math.min(ordersPageCount, p + 1))}
+                disabled={ordersPage === ordersPageCount}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Trang sau"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setOrdersPage(ordersPageCount)}
+                disabled={ordersPage === ordersPageCount}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Trang cuối"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </AnimatedSection>
+      )}
 
       {/* Modal xác nhận xóa hàng loạt */}
       {confirmBulkDelete && (

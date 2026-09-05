@@ -87,7 +87,7 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
     showToast({
       type: 'success',
       title: 'Đặt hàng thành công! 🎉',
-      message: `Mã đơn ${orderId} đang chờ xác nhận.`,
+      message: `Mã đơn ${orderId} — shop sẽ gửi thông tin tài khoản sớm nhất.`,
       duration: 4000,
     });
   };
@@ -102,11 +102,11 @@ const CheckoutPage = ({ onBack, onNavigate }: CheckoutPageProps) => {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white mt-6">Đặt hàng thành công!</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              Cảm ơn bạn đã mua hàng. Slot của bạn sẽ được kích hoạt sau khi thanh toán được xác nhận (thường trong 5-10 phút).
+              Cảm ơn bạn đã mua hàng. Shop đang chuẩn bị và sẽ gửi đầy đủ thông tin tài khoản/slot cho bạn qua kênh liên hệ (thường trong 5-10 phút).
             </p>
             <p className="flex items-center justify-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-4">
               <Clock className="w-3.5 h-3.5" />
-              Trạng thái: Chờ xác nhận thanh toán
+              Trạng thái: Đang xử lý — chưa nhận được dữ liệu tài khoản
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">

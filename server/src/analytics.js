@@ -213,7 +213,7 @@ export function getAnalytics() {
       amount: r.total,
       quantity,
       date: fmtDate(r.timestamp),
-      status: r.status || 'Hoàn thành',
+      status: r.status || 'Đang xử lý',
     };
   });
   const recentOrders = recentRows;

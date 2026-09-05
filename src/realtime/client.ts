@@ -11,7 +11,13 @@
 import { io, type Socket } from 'socket.io-client';
 import { getToken } from '../api';
 
-export type RealtimeEvent = 'user:updated' | 'user:deleted' | 'order:created' | 'users:changed' | 'analytics:changed';
+export type RealtimeEvent =
+  | 'user:updated'
+  | 'user:deleted'
+  | 'order:created'
+  | 'order:updated'
+  | 'users:changed'
+  | 'analytics:changed';
 
 export interface UserUpdatedPayload {
   email?: string;
@@ -37,6 +43,12 @@ export interface OrderCreatedPayload {
   email?: string;
   order?: { id: string; items: unknown[]; total: number; timestamp: number };
   actor?: string;
+}
+
+export interface OrderUpdatedPayload {
+  email?: string;
+  orderId?: string;
+  status?: string;
 }
 
 export interface UsersChangedPayload {
@@ -119,6 +131,7 @@ export function connectRealtime(token: string): Socket {
   socket.on('user:updated', (p: UserUpdatedPayload) => dispatch('user:updated', p));
   socket.on('user:deleted', (p: UserDeletedPayload) => dispatch('user:deleted', p));
   socket.on('order:created', (p: OrderCreatedPayload) => dispatch('order:created', p));
+  socket.on('order:updated', (p: OrderUpdatedPayload) => dispatch('order:updated', p));
   socket.on('users:changed', (p: UsersChangedPayload) => dispatch('users:changed', p));
   socket.on('analytics:changed', (p: AnalyticsChangedPayload) => dispatch('analytics:changed', p));
 

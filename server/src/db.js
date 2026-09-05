@@ -114,10 +114,22 @@ export function getOrders(email) {
 }
 
 export function createOrder(order) {
+  // Đơn mới luôn "Đang xử lý" — shop chưa gửi thông tin tài khoản/slot cho khách
   const stmt = db.prepare(
-    'INSERT INTO orders (id, email, items, total, timestamp) VALUES (?, ?, ?, ?, ?)'
+    "INSERT INTO orders (id, email, items, total, status, timestamp) VALUES (?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(order.id, order.email, JSON.stringify(order.items), order.total, order.timestamp);
+  stmt.run(order.id, order.email, JSON.stringify(order.items), order.total, order.status || 'Đang xử lý', order.timestamp);
+}
+
+/** Admin cập nhật trạng thái đơn (VD đã gửi dữ liệu → 'Hoàn thành') */
+export function updateOrderStatus(id, status) {
+  const stmt = db.prepare('UPDATE orders SET status = ? WHERE id = ?');
+  return stmt.run(status, id);
+}
+
+/** Lấy 1 đơn bất kỳ (admin) */
+export function getOrder(id) {
+  return db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
 }
 
 export function createTransaction(tx) {

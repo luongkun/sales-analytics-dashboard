@@ -15,12 +15,14 @@ import {
   getPurchases,
   addPurchase,
   getOrders,
+  getOrder,
   createOrder,
+  updateOrderStatus,
   createTransaction,
   getTotalTopup,
 } from './db.js';
 import { getAnalytics, getDailyRevenue } from './analytics.js';
-import { getAdminUsersPage, bulkDeleteUsers, bulkSetRole } from './admin.js';
+import { getAdminUsersPage, getAdminOrdersPage, bulkDeleteUsers, bulkSetRole } from './admin.js';
 
 // ---------- Email ----------
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
@@ -468,6 +470,9 @@ app.post('/api/orders', auth, (req, res) => {
     email: user.email,
     items,
     total,
+    // Đơn mới: Đang xử lý — shop chưa gửi thông tin tài khoản/slot cho khách;
+    // admin bấm "Đã gửi thông tin" trong Quản trị → Hoàn thành
+    status: 'Đang xử lý',
     timestamp: Date.now(),
   };
   createOrder(order);
@@ -521,6 +526,43 @@ app.get('/api/admin/users', auth, (req, res) => {
     sort: String(sort || 'newest'),
   });
   res.json({ ok: true, ...result });
+});
+
+// Danh sách đơn hàng cho admin (lọc trạng thái, tìm kiếm, phân trang)
+app.get('/api/admin/orders', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') {
+    return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
+  }
+  const result = getAdminOrdersPage({
+    page: Number(req.query.page) || 1,
+    pageSize: Number(req.query.pageSize) || 10,
+    status: String(req.query.status || 'Đang xử lý'),
+    q: String(req.query.q || ''),
+  });
+  res.json({ ok: true, ...result });
+});
+
+// Admin cập nhật trạng thái đơn — dùng khi đã gửi đầy đủ thông tin cho khách
+app.put('/api/admin/orders/:id', auth, (req, res) => {
+  const admin = getUser(req.user.email);
+  if (!admin || admin.role !== 'admin') {
+    return res.status(403).json({ error: 'Yêu cầu quyền quản trị viên' });
+  }
+  const ALLOWED = ['Đang xử lý', 'Hoàn thành', 'Đã hủy'];
+  const { status } = req.body || {};
+  if (!ALLOWED.includes(status)) {
+    return res.status(400).json({ error: 'Trạng thái không hợp lệ (Đang xử lý / Hoàn thành / Đã hủy)' });
+  }
+  const order = getOrder(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Đơn hàng không tồn tại' });
+  if (order.status === status) {
+    return res.status(400).json({ error: `Đơn đã ở trạng thái ${status}` });
+  }
+  updateOrderStatus(order.id, status);
+  broadcast(`user:${order.email}`, 'order:updated', { email: order.email, orderId: order.id, status });
+  broadcast(null, 'analytics:changed', { reason: 'order:status', orderId: order.id });
+  res.json({ ok: true, orderId: order.id, status });
 });
 
 // Hành động hàng loạt: xóa nhiều user hoặc đổi vai trò nhiều user

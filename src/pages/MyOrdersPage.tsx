@@ -131,6 +131,16 @@ const MyOrdersPage = ({ onNavigate }: MyOrdersPageProps) => {
     return off;
   }, [load, user?.email]);
 
+  // Realtime: admin đã gửi dữ liệu / đổi trạng thái đơn của mình → refetch âm thầm
+  useEffect(() => {
+    const off = onRealtime<{ email?: string; orderId?: string; status?: string }>('order:updated', (payload) => {
+      if (payload?.email && payload.email === user?.email) {
+        load(true);
+      }
+    });
+    return off;
+  }, [load, user?.email]);
+
   const allParsed = useMemo(
     () => (orders || []).map((o) => ({ ...o, parsedItems: parseItems(o.items) })),
     [orders]
@@ -431,6 +441,12 @@ const MyOrdersPage = ({ onNavigate }: MyOrdersPageProps) => {
                             ? o.parsedItems.map((i) => `${i.name} ×${i.quantity}`).join(' · ')
                             : '—'}
                         </p>
+                        {o.status === 'Đang xử lý' && (
+                          <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                            Shop chưa gửi thông tin tài khoản cho đơn này — sẽ cập nhật ngay khi dữ liệu được chuyển.
+                          </p>
+                        )}
 
                         {/* Nút mở chi tiết */}
                         {o.parsedItems.length > 0 && (

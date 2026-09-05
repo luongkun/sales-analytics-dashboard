@@ -124,3 +124,53 @@ export function bulkSetRole(emails, role, actor) {
   upd(list);
   return { updated, skipped, actor };
 }
+
+/**
+ * Trang danh sách đơn hàng cho admin (phân trang + lọc trạng thái + tìm kiếm).
+ * @param {{page?: number, pageSize?: number, status?: string, q?: string}} params
+ */
+export function getAdminOrdersPage({ page = 1, pageSize = 10, status = 'Đang xử lý', q = '' } = {}) {
+  const size = PAGE_SIZES.includes(Number(pageSize)) ? Number(pageSize) : 10;
+  const where = [];
+  const args = [];
+
+  if (status === 'Đang xử lý' || status === 'Hoàn thành' || status === 'Đã hủy') {
+    where.push('o.status = ?');
+    args.push(status);
+  }
+  if (q && String(q).trim()) {
+    const pat = `%${likeEscape(String(q).trim())}%`;
+    where.push("(o.id LIKE ? ESCAPE '\\' OR o.email LIKE ? ESCAPE '\\' OR IFNULL(u.name,'') LIKE ? ESCAPE '\\')");
+    args.push(pat, pat, pat);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const total = db.prepare(`SELECT COUNT(*) AS c FROM orders o LEFT JOIN users u ON u.email = o.email ${whereSql}`).get(...args).c;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+
+  let p = Math.max(1, Math.floor(Number(page) || 1));
+  if (p > pageCount) p = pageCount;
+
+  const rows = db.prepare(
+    `SELECT o.id AS id, o.email AS email, o.items AS items, o.total AS total,
+            o.status AS status, o.timestamp AS timestamp, u.name AS name
+     FROM orders o LEFT JOIN users u ON u.email = o.email
+     ${whereSql}
+     ORDER BY o.timestamp DESC
+     LIMIT ? OFFSET ?`
+  ).all(...args, size, (p - 1) * size).map((r) => {
+    let items = [];
+    try { items = JSON.parse(r.items || '[]'); } catch { /* ignore */ }
+    return {
+      id: r.id,
+      email: r.email,
+      name: r.name || r.email,
+      items,
+      total: r.total,
+      status: r.status,
+      timestamp: r.timestamp,
+    };
+  });
+
+  return { orders: rows, total, page: p, pageSize: size, pageCount };
+}
