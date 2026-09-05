@@ -80,7 +80,7 @@ const OrdersPage = () => {
               <Clock size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Đang xử lý/giao ({processingPct}%)</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Đang xử lý ({processingPct}%)</p>
               <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{formatNumber(orderStats.processing)}</h3>
             </div>
           </div>

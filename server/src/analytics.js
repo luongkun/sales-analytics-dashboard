@@ -183,7 +183,7 @@ export function getAnalytics() {
 
   // ---------- Đơn hàng theo trạng thái ----------
   const statusRows = db.prepare('SELECT status, COUNT(*) AS c FROM orders GROUP BY status').all();
-  const STATUS_COLORS = { 'Hoàn thành': '#10b981', 'Đang xử lý': '#f59e0b', 'Đang giao': '#3b82f6', 'Đã hủy': '#ef4444' };
+  const STATUS_COLORS = { 'Hoàn thành': '#10b981', 'Đang xử lý': '#f59e0b', 'Đã hủy': '#ef4444' };
   const orderStatus = statusRows
     .filter((r) => r.status)
     .map((r) => ({ name: r.status, value: r.c, color: STATUS_COLORS[r.status] || '#9ca3af' }))

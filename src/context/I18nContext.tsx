@@ -117,7 +117,6 @@ const translations: Record<Locale, Record<string, string>> = {
     'orders.cancelled': 'Đã hủy',
     'orders.status_completed': 'Hoàn thành',
     'orders.status_processing': 'Đang xử lý',
-    'orders.status_shipping': 'Đang giao',
     'orders.status_cancelled': 'Đã hủy',
     
     // Customers
@@ -163,8 +162,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'notifications.remove': 'Xóa thông báo',
     'notif.revenue_record.title': '🎉 Doanh thu tháng {revenue} lập kỷ lục mới!',
     'notif.revenue_record.message': 'Doanh thu tháng này tăng {percent}% so với tháng trước.',
-    'notif.order_shipping.title': 'Đơn hàng {id} đang trên đường giao',
-    'notif.order_shipping.message': 'Sản phẩm: {product}. Dự kiến giao trong hôm nay.',
+    'notif.order_processing.title': 'Đơn hàng {id} đang được xử lý',
+    'notif.order_processing.message': 'Sản phẩm: {product}. Shop sẽ hoàn tất ngay khi xong.',
     'notif.target_progress.title': 'Đã hoàn thành {percent}% mục tiêu quý',
     'notif.target_progress.message': 'Bạn đang đi trước kế hoạch. Tiếp tục phát huy nhé!',
     'notif.order_cancelled.title': 'Đơn hàng {id} đã bị hủy',
@@ -282,7 +281,6 @@ const translations: Record<Locale, Record<string, string>> = {
     'orders.cancelled': 'Cancelled',
     'orders.status_completed': 'Completed',
     'orders.status_processing': 'Processing',
-    'orders.status_shipping': 'Shipping',
     'orders.status_cancelled': 'Cancelled',
     
     // Customers
@@ -328,8 +326,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'notifications.remove': 'Remove notification',
     'notif.revenue_record.title': '🎉 New revenue record: {revenue}!',
     'notif.revenue_record.message': 'Revenue is up {percent}% compared to last month.',
-    'notif.order_shipping.title': 'Order {id} is out for delivery',
-    'notif.order_shipping.message': 'Product: {product}. Expected delivery today.',
+    'notif.order_processing.title': 'Order {id} is being processed',
+    'notif.order_processing.message': 'Product: {product}. The shop will complete it shortly.',
     'notif.target_progress.title': '{percent}% of quarterly target achieved',
     'notif.target_progress.message': 'You are ahead of schedule. Keep it up!',
     'notif.order_cancelled.title': 'Order {id} has been cancelled',

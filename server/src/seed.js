@@ -8,7 +8,7 @@
 //  - ~8.500 đơn hàng trải 24 tháng kết thúc ở THÁNG HIỆN TẠI (chỉ đến hôm nay),
 //    số đơn tăng ~5.5%/tháng → biểu đồ doanh thu có xu hướng tăng
 //  - Trạng thái đơn hợp lý: đơn cũ đa số "Hoàn thành", đơn 3 ngày gần nhất
-//    nghiêng về "Đang xử lý"/"Đang giao"
+//    nghiêng về "Đang xử lý" (shop không hỗ trợ giao hàng)
 //  - Vài giao dịch nạp tiền demo cho mỗi khách
 //
 // Đơn seed dùng id 5 chữ số (ORD-15001…): KHÔNG bao giờ đụng id thật
@@ -221,11 +221,11 @@ function seedOrders() {
           total += p.price * qty;
         }
 
-        // trạng thái theo độ tuổi đơn
+        // trạng thái theo độ tuổi đơn (shop không hỗ trợ giao hàng — không có 'Đang giao')
         let status;
-        if (daysAgo < 1) status = pickWeighted([{ w: 45, v: 'Đang xử lý' }, { w: 30, v: 'Đang giao' }, { w: 20, v: 'Hoàn thành' }, { w: 5, v: 'Đã hủy' }]).v;
-        else if (daysAgo < 3) status = pickWeighted([{ w: 25, v: 'Đang xử lý' }, { w: 30, v: 'Đang giao' }, { w: 40, v: 'Hoàn thành' }, { w: 5, v: 'Đã hủy' }]).v;
-        else status = pickWeighted([{ w: 88, v: 'Hoàn thành' }, { w: 4, v: 'Đang giao' }, { w: 8, v: 'Đã hủy' }]).v;
+        if (daysAgo < 1) status = pickWeighted([{ w: 60, v: 'Đang xử lý' }, { w: 30, v: 'Hoàn thành' }, { w: 10, v: 'Đã hủy' }]).v;
+        else if (daysAgo < 3) status = pickWeighted([{ w: 35, v: 'Đang xử lý' }, { w: 55, v: 'Hoàn thành' }, { w: 10, v: 'Đã hủy' }]).v;
+        else status = pickWeighted([{ w: 90, v: 'Hoàn thành' }, { w: 10, v: 'Đã hủy' }]).v;
 
         insert.run(`ORD-S${seq}`, buyer.email, JSON.stringify(items), total, status, Math.floor(ts));
         seq++;

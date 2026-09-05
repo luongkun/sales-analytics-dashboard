@@ -187,12 +187,12 @@ export const formatNumber = (value: number): string => {
 
 export const recentOrders: RecentOrder[] = [
   { id: 'ORD-2851', customer: 'Nguyễn Văn An', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(0), status: 'Hoàn thành' , quantity: 2 },
-  { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(0), status: 'Đang giao' , quantity: 1 },
+  { id: 'ORD-2850', customer: 'Trần Thị Bình', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(0), status: 'Đang xử lý' , quantity: 1 },
   { id: 'ORD-2849', customer: 'Lê Hoàng Cường', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(1), status: 'Đang xử lý' , quantity: 2 },
   { id: 'ORD-2848', customer: 'Phạm Minh Duy', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(1), status: 'Hoàn thành' , quantity: 1 },
   { id: 'ORD-2847', customer: 'Hoàng Thị Em', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(1), status: 'Hoàn thành' , quantity: 2 },
   { id: 'ORD-2846', customer: 'Vũ Đức Phong', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(2), status: 'Đã hủy' , quantity: 1 },
-  { id: 'ORD-2845', customer: 'Đỗ Thị Giang', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(2), status: 'Đang giao' , quantity: 2 },
+  { id: 'ORD-2845', customer: 'Đỗ Thị Giang', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(2), status: 'Đang xử lý' , quantity: 2 },
   { id: 'ORD-2844', customer: 'Bùi Thanh Hải', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(2), status: 'Hoàn thành' , quantity: 1 },
   { id: 'ORD-2843', customer: 'Ngô Thị Hương', product: 'Netflix Trial 30 days', amount: 40000, date: daysAgo(3), status: 'Hoàn thành' , quantity: 2 },
   { id: 'ORD-2842', customer: 'Mai Văn Khoa', product: 'Netflix Trial 30 days', amount: 20000, date: daysAgo(3), status: 'Đang xử lý' , quantity: 1 },

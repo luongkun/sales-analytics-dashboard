@@ -58,7 +58,7 @@ function buildInitialNotifications(readIds: Set<string>): Notification[] {
   const growthPercent = (((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100).toFixed(1);
 
   const cancelled = recentOrders.find((o) => o.status === 'Đã hủy');
-  const shipping = recentOrders.find((o) => o.status === 'Đang giao');
+  const processing = recentOrders.find((o) => o.status === 'Đang xử lý');
 
   const q4Total =
     lastMonth.revenue + prevMonth.revenue + monthlyRevenue[monthlyRevenue.length - 3].revenue;
@@ -83,15 +83,15 @@ function buildInitialNotifications(readIds: Set<string>): Notification[] {
       linkTo: 'revenue',
     },
     {
-      id: 'notif-order-shipping',
+      id: 'notif-order-processing',
       type: 'info',
-      titleKey: 'notif.order_shipping.title',
-      messageKey: 'notif.order_shipping.message',
-      params: shipping
-        ? { id: shipping.id, product: shipping.product }
+      titleKey: 'notif.order_processing.title',
+      messageKey: 'notif.order_processing.message',
+      params: processing
+        ? { id: processing.id, product: processing.product }
         : { id: '-', product: '-' },
       timestamp: now - 25 * MINUTE,
-      read: readIds.has('notif-order-shipping'),
+      read: readIds.has('notif-order-processing'),
       linkTo: 'orders',
     },
     {

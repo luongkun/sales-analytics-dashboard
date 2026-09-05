@@ -15,7 +15,6 @@ import {
   ChevronDown,
   CheckCircle2,
   Clock,
-  Truck,
   XCircle,
   ShoppingBag,
   Package,
@@ -51,11 +50,10 @@ const PAGE_SIZE = 8;
 const STATUS_META: Record<string, { color: string; icon: typeof Clock }> = {
   'Hoàn thành': { color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400', icon: CheckCircle2 },
   'Đang xử lý': { color: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400', icon: Clock },
-  'Đang giao': { color: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400', icon: Truck },
   'Đã hủy': { color: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400', icon: XCircle },
 };
 
-const STATUS_LIST = ['Tất cả', 'Hoàn thành', 'Đang xử lý', 'Đang giao', 'Đã hủy'];
+const STATUS_LIST = ['Tất cả', 'Hoàn thành', 'Đang xử lý', 'Đã hủy'];
 
 /** items trong DB lưu dạng JSON string — parse an toàn */
 function parseItems(raw: string | MyOrderItem[]): MyOrderItem[] {
