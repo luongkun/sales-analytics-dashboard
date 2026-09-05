@@ -62,7 +62,7 @@ function buildInitialNotifications(readIds: Set<string>): Notification[] {
 
   const q4Total =
     lastMonth.revenue + prevMonth.revenue + monthlyRevenue[monthlyRevenue.length - 3].revenue;
-  const q4Target = 1_800_000_000;
+  const q4Target = 80_000_000;
   const targetPercent = Math.round((q4Total / q4Target) * 100);
 
   const lastWeek = orderTrend[orderTrend.length - 1];

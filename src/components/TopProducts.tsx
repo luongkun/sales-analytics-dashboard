@@ -2,6 +2,7 @@ import { formatCurrency, formatNumber, TopProduct } from '../data/salesData';
 import { Trophy } from 'lucide-react';
 
 const categoryColors: Record<string, string> = {
+  'Giải trí': 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300',
   'Điện tử': 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
   'Thời trang': 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
   'Thực phẩm': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
