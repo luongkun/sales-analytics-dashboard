@@ -4,7 +4,7 @@
 const BANK = {
   bin: '970436',          // VCB
   accountNumber: '1071100102',
-  accountName: 'LUONG VAN KUN',
+  accountName: 'NGUYEN THE LUONG',
 };
 
 /** Nội dung CK: NAP + mã ngẫu nhiên 6 số (mỗi request 1 mã riêng) */
@@ -59,7 +59,7 @@ export function publicPayment(p) {
   return {
     id, email, content, amount, status, createdAt, expiresAt, paidAt,
     bank: {
-      name: 'Vietcombank (VCB)',
+      name: 'Vietcombank',
       accountNo: BANK.accountNumber,
       accountName: BANK.accountName,
     },

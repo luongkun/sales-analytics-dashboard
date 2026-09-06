@@ -24,7 +24,6 @@ import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { genPaymentContent, publicPayment, BANK } from './payments.js';
 import { connectRealtimeBridge, broadcast } from './realtime.js';
 import { creditTopup, publicUser, getVipTier } from './helpers.js';
-import { createPaymentsRouter } from './v1/payments/index.js';
 import db from './db.js';
 
 const app = express();
@@ -33,11 +32,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const TOKEN_7D = '7d';
 
 app.use(cors());
-// Capture RAW BODY cho mọi request — webhook v1 cần chuỗi gốc để verify HMAC-SHA256
-app.use(express.json({
-  limit: '1mb',
-  verify: (req, _res, buf) => { req.rawBody = buf ? buf.toString('utf8') : ''; },
-}));
+app.use(express.json({ limit: '1mb' }));
 
 // ---------- helpers ----------
 const reqIp = (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
@@ -322,10 +317,12 @@ app.post('/api/payments/create', auth, (req, res) => {
     return res.status(400).json({ error: 'Số tiền phải từ 10.000đ đến 50.000.000đ' });
   }
   expireStalePayments();
+  // Nội dung CK = NAP_ID cố định theo user (userCode duy nhất) — quét QR tự điền, webhook khớp user
+  const me = getUser(req.user.email);
   const payment = {
     id: `PR-${Date.now().toString(36).toUpperCase()}`,
     email: req.user.email,
-    content: genPaymentContent(),
+    content: me?.userCode ? `NAP${me.userCode}` : genPaymentContent(),
     amount: amt,
     createdAt: Date.now(),
     expiresAt: Date.now() + PAYMENT_TTL,
@@ -353,7 +350,7 @@ app.post('/api/payments/:id/simulate', auth, (req, res) => {
   const result = creditTopup(p.email, p.amount, 'topup', ref);
   markPaymentPaid(p.id, { ...result, simulated: true }, ref);
   addWebhookLog({ ts: Date.now(), ip: reqIp(req), provider: 'simulate', ok: 1, reason: 'simulate-paid', content: p.content, amount: p.amount });
-  broadcast(`user:${p.email}`, 'user:updated', { email: p.email, reason: 'topup', actor: p.email, user: publicUser(getUser(p.email)) });
+  broadcast(`user:${p.email}`, 'user:updated', { email: p.email, reason: 'topup', actor: p.email, user: publicUser(getUser(p.email)), topup: { amount: p.amount, bonus: (result.bonus || 0) + (result.vipBonus || 0), balance: result.balance } });
   broadcast(null, 'analytics:changed', { reason: 'topup', email: p.email });
   res.json({ ok: true, payment: publicPayment(getPaymentRequest(p.id)) });
 });
@@ -374,22 +371,19 @@ app.post('/api/payments/webhook', (req, res) => {
     return res.status(401).json({ ok: false, error: 'invalid api_key' });
   }
 
-  // Tìm NAP content (NAPxxxxxx) trong mô tả giao dịch
-  const m = rawContent.toUpperCase().match(/NAP(\d{6})/);
+  // Tìm NAP content (NAPxxxxxx — chấp nhận khoảng trắng giữa NAP và mã)
+  const m = rawContent.toUpperCase().match(/NAP\s*(\d{6})/);
   if (!m) {
     addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'no NAP content', content: rawContent, amount });
     return res.json({ ok: false, error: 'no NAP content' });
   }
   const napCode = m[0];
 
-  // Ưu tiên 1: khớp payment request pending theo content
-  let payment = findPendingPaymentByContent(napCode);
-  // Ưu tiên 2: NAP{userCode} của user (nạp không cần tạo PR)
-  let targetUser = payment ? getUser(payment.email) : null;
-  if (!targetUser) {
-    const userCode = Number(m[1]);
-    targetUser = getUserByUserCode(userCode);
-  }
+  // Ưu tiên 1: NAP{userCode} — mã định danh duy nhất của user (nạp không cần PR)
+  let targetUser = getUserByUserCode(Number(m[1]));
+  // Ưu tiên 2: khớp payment request pending theo content (content ngẫu nhiên cũ)
+  let payment = targetUser ? null : findPendingPaymentByContent(napCode);
+  if (!targetUser && payment) targetUser = getUser(payment.email);
   if (!targetUser) {
     addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'NAP code không khớp', content: napCode, amount });
     return res.json({ ok: false, error: 'nap-not-found' });
@@ -398,26 +392,31 @@ app.post('/api/payments/webhook', (req, res) => {
     addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'amount mismatch', content: napCode, amount });
     return res.json({ ok: false, error: 'amount-mismatch' });
   }
+  // Bookkeeping: hoàn tất PR pending cùng NAP_ID + đúng số tiền của user này (nếu có)
+  if (!payment && targetUser && amount > 0) {
+    const pr = findPendingPaymentByContent(napCode);
+    if (pr && pr.email === targetUser.email && pr.amount === amount) payment = pr;
+  }
   const creditAmount = amount > 0 ? amount : (payment ? payment.amount : 0);
   if (creditAmount <= 0) {
     addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'amount missing', content: napCode, amount });
     return res.json({ ok: false, error: 'amount-missing' });
+  }
+  // Idempotent: giao dịch đã xử lý (cùng providerRef) → bỏ qua, không cộng 2 lần
+  if (providerRef && db.prepare('SELECT 1 FROM transactions WHERE id = ?').get(`TX-${providerRef}`)) {
+    addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'duplicate transaction', content: napCode, amount });
+    return res.json({ ok: false, error: 'duplicate-transaction' });
   }
 
   const result = creditTopup(targetUser.email, creditAmount, 'topup', providerRef || `${napCode}-${Date.now()}`);
   if (payment) markPaymentPaid(payment.id, result, providerRef || napCode);
   addWebhookLog({ ts: Date.now(), ip, provider, ok: 1, reason: `credited ${creditAmount}`, content: napCode, amount: creditAmount });
 
-  broadcast(`user:${targetUser.email}`, 'user:updated', { email: targetUser.email, reason: 'topup', actor: 'webhook', user: publicUser(getUser(targetUser.email)) });
+  // Payload kèm dữ liệu nạp — FE dùng để hiện modal "Nạp tiền thành công" giữa màn hình
+  broadcast(`user:${targetUser.email}`, 'user:updated', { email: targetUser.email, reason: 'topup', actor: 'webhook', user: publicUser(getUser(targetUser.email)), topup: { amount: creditAmount, bonus: (result.bonus || 0) + (result.vipBonus || 0), balance: result.balance } });
   broadcast(null, 'analytics:changed', { reason: 'topup', email: targetUser.email });
   res.json({ ok: true, email: targetUser.email, balance: result.balance, bonus: result.bonus, vipBonus: result.vipBonus });
 });
-
-// ============================================================
-//  PAYMENTS v1 — QR ĐỘNG chuẩn spec (NAP_ID + VietQR URL + HMAC webhook + idempotent)
-//  Chi tiết: server/src/v1/payments/ (controller / service / model / helpers)
-// ============================================================
-app.use('/api/v1/payments', createPaymentsRouter({ auth }));
 
 // ============================================================
 //  ADMIN
