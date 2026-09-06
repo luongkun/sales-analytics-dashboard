@@ -3,3 +3,5 @@ dist/
 server/node_modules/
 *.log
 .env.local
+server/src/data/*.db-shm
+server/src/data/*.db-wal

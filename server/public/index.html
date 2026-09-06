@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/app/favicon.svg" />
+    <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Dashboard phân tích doanh thu realtime — doanh thu, đơn hàng, khách hàng, báo cáo và quản trị tài khoản." />
+    <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+
+    <!-- Chia sẻ mạng xã hội -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sales Suite Pro" />
+    <meta property="og:title" content="Sales Suite Pro — Analytics Dashboard" />
+    <meta property="og:description" content="Dashboard phân tích doanh thu realtime: biểu đồ tương tác, đồng bộ realtime, tìm kiếm nhanh Ctrl+K." />
+    <meta property="og:image" content="/app/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sales Suite Pro — Analytics Dashboard" />
+    <meta name="twitter:description" content="Dashboard phân tích doanh thu realtime, đồng bộ tức thời." />
+    <meta name="twitter:image" content="/app/og-image.png" />
+
+    <title>Sales Suite Pro — Dashboard phân tích doanh thu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script type="module" crossorigin src="/app/assets/index-BO8pxDQf.js"></script>
+    <link rel="stylesheet" crossorigin href="/app/assets/index-wkb6jS8o.css">
+  <script>
+/* Live products sync — patch khôi phục sau reset: slot từ server (GET /api/products)
+   + mirror giỏ hàng cho addToCart check slot đồng bộ */
+(function () {
+  function loadCart() {
+    try { window.__cartMirror = JSON.parse(localStorage.getItem('cart-items') || '[]'); }
+    catch (e) { window.__cartMirror = []; }
+  }
+  window.__LIVE_BS = window.__LIVE_BS || {};
+  loadCart();
+  var lastCart = localStorage.getItem('cart-items');
+  function tick() {
+    var c = localStorage.getItem('cart-items');
+    if (c !== lastCart) { lastCart = c; loadCart(); syncProducts(); }
+  }
+  setInterval(tick, 500);
+  var syncing = false;
+  function syncProducts() {
+    if (syncing) return;
+    var t = null;
+    try { t = localStorage.getItem('auth-token'); } catch (e) {}
+    if (!t) return;
+    syncing = true;
+    fetch('/api/products', { headers: { Authorization: 'Bearer ' + t } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.products) {
+          d.products.forEach(function (p) { window.__LIVE_BS[p.id] = p.bookedSlots; });
+        }
+      })
+      .catch(function () {})
+      .finally(function () { syncing = false; });
+  }
+  syncProducts();
+  setInterval(syncProducts, 10000);
+})();
+</script>
+<script>
+/* Zoom QR — click ảnh QR để phóng to; đóng bằng click bất kỳ hoặc ESC */
+window.__zoomQr = function (src) {
+  var old = document.getElementById('__qr_zoom');
+  if (old) { old.remove(); return; }
+  var o = document.createElement('div');
+  o.id = '__qr_zoom';
+  o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;padding:24px';
+  var i = document.createElement('img');
+  i.src = src; i.alt = 'Mã QR phóng to';
+  i.style.cssText = 'max-width:92vw;max-height:78vh;background:#fff;border-radius:16px;padding:14px;box-shadow:0 24px 60px rgba(0,0,0,.55)';
+  var h = document.createElement('div');
+  h.textContent = 'Nhấn bất kỳ đâu hoặc ESC để đóng';
+  h.style.cssText = 'margin-top:14px;color:rgba(255,255,255,.8);font-size:13px;font-family:system-ui,sans-serif';
+  function close() { o.remove(); document.removeEventListener('keydown', onEsc); }
+  function onEsc(ev) { if (ev.key === 'Escape') close(); }
+  o.addEventListener('click', close);
+  document.addEventListener('keydown', onEsc);
+  o.appendChild(i); o.appendChild(h);
+  document.body.appendChild(o);
+};
+</script>
+<script>
+/* Modal "Nạp tiền thành công" — hiện giữa màn hình khi webhook xác nhận tiền về (NAP_ID khớp user) */
+window.__topupModal = function (t, user) {
+  var old = document.getElementById('__topup_ok');
+  if (old) old.remove();
+  var dark = document.documentElement.classList.contains('dark');
+  var fmt = function (n) { return Number(n || 0).toLocaleString('vi-VN'); };
+  var o = document.createElement('div');
+  o.id = '__topup_ok';
+  o.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px';
+  var c = document.createElement('div');
+  c.style.cssText = 'width:100%;max-width:380px;background:' + (dark ? '#1f2937' : '#fff') + ';color:' + (dark ? '#f9fafb' : '#111827') + ';border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;text-align:center;font-family:Inter,system-ui,sans-serif;animation:__pop .25s ease';
+  var head = document.createElement('div');
+  head.style.cssText = 'width:72px;height:72px;margin:28px auto 0;border-radius:50%;background:linear-gradient(135deg,#10b981,#14b8a6);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 28px rgba(16,185,129,.45)';
+  head.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  var h = document.createElement('h3');
+  h.textContent = 'Nạp tiền thành công! 🎉';
+  h.style.cssText = 'margin:16px 24px 4px;font-size:19px;font-weight:800';
+  var sub = document.createElement('p');
+  sub.textContent = 'Hệ thống đã xác nhận giao dịch chuyển khoản';
+  sub.style.cssText = 'margin:0 24px 18px;font-size:13px;color:' + (dark ? '#9ca3af' : '#6b7280');
+  var rows = document.createElement('div');
+  rows.style.cssText = 'margin:0 20px 6px;display:flex;flex-direction:column;gap:8px';
+  function row(label, value, color) {
+    var r = document.createElement('div');
+    r.style.cssText = 'display:flex;justify-content:space-between;padding:10px 14px;border-radius:12px;background:' + (dark ? 'rgba(255,255,255,.06)' : '#f9fafb') + ';font-size:14px';
+    var l = document.createElement('span');
+    l.textContent = label;
+    l.style.cssText = 'color:' + (dark ? '#9ca3af' : '#6b7280');
+    var v = document.createElement('span');
+    v.textContent = value;
+    v.style.cssText = 'font-weight:700;color:' + (color || '');
+    r.appendChild(l); r.appendChild(v);
+    return r;
+  }
+  rows.appendChild(row('Số tiền nạp', '+' + fmt(t.amount) + 'đ', '#10b981'));
+  if (t.bonus > 0) rows.appendChild(row('Thưởng nạp', '+' + fmt(t.bonus) + 'đ', '#f59e0b'));
+  rows.appendChild(row('Số dư mới', fmt(t.balance != null ? t.balance : (user && user.balance)) + 'đ', ''));
+  var btn = document.createElement('button');
+  btn.textContent = 'Tiếp tục';
+  btn.style.cssText = 'margin:14px 20px 24px;width:calc(100% - 40px);padding:12px;border:0;border-radius:12px;background:linear-gradient(135deg,#10b981,#14b8a6);color:#fff;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 20px rgba(16,185,129,.35)';
+  btn.onmouseenter = function () { btn.style.filter = 'brightness(1.06)'; };
+  btn.onmouseleave = function () { btn.style.filter = 'none'; };
+  function close() { o.remove(); document.removeEventListener('keydown', onEsc); }
+  function onEsc(ev) { if (ev.key === 'Escape') close(); }
+  btn.onclick = close;
+  document.addEventListener('keydown', onEsc);
+  c.appendChild(head); c.appendChild(h); c.appendChild(sub); c.appendChild(rows); c.appendChild(btn);
+  o.appendChild(c);
+  document.body.appendChild(o);
+};
+</script>
+<style>
+@keyframes __pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

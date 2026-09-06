@@ -8,6 +8,10 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import path from 'path';
+import http from 'http';
+import { fileURLToPath } from 'url';
+import { Server as SocketIOServer } from 'socket.io';
 import {
   getUser, getUsers, createUser, updateUser, deleteUser, renameUserEmail,
   getPurchases, addPurchase,
@@ -22,7 +26,7 @@ import {
 } from './db.js';
 import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { genPaymentContent, publicPayment, BANK } from './payments.js';
-import { connectRealtimeBridge, broadcast } from './realtime.js';
+import { connectRealtimeBridge, broadcast, setRealtimeLocal } from './realtime.js';
 import { creditTopup, publicUser, getVipTier } from './helpers.js';
 import db from './db.js';
 
@@ -30,6 +34,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const TOKEN_7D = '7d';
+const DEPLOY = process.env.DEPLOY === '1'; // 1 process tự chủ: static + API + socket.io cùng port
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -700,9 +705,52 @@ app.delete('/api/chat/:sessionId', auth, (req, res) => {
 });
 
 // ============================================================
-//  START
+//  DEPLOY MODE — static SPA + socket.io in-process (Render/hosting 1 process)
 // ============================================================
-app.listen(PORT, () => {
-  console.log(`API server running at http://localhost:${PORT}`);
-  connectRealtimeBridge();
-});
+if (DEPLOY) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const webRoot = path.join(__dirname, '..', 'public'); // bundle SPA đã build
+
+  // Serve SPA tại /app (bundle build với base=/app/) — mọi fetch('/api/…') cùng origin
+  app.use('/app', express.static(webRoot));
+  app.get('/', (req, res) => res.redirect('/app/'));
+
+  // socket.io gắn trực tiếp vào Express — client SPA nối same-origin (path mặc định /socket.io)
+  const httpServer = http.createServer(app);
+  const deployIo = new SocketIOServer(httpServer, {
+    cors: { origin: '*', methods: ['GET', 'POST'] },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+  });
+  deployIo.use((socket, next) => {
+    const token = (socket.handshake.auth && socket.handshake.auth.token) || socket.handshake.query?.token;
+    if (!token) return next(new Error('Unauthorized: missing token'));
+    try {
+      const payload = jwt.verify(String(token), JWT_SECRET);
+      if (!payload.email) return next(new Error('Unauthorized: invalid token payload'));
+      socket.data.email = String(payload.email).toLowerCase();
+      next();
+    } catch {
+      next(new Error('Unauthorized: invalid token'));
+    }
+  });
+  deployIo.on('connection', (socket) => {
+    const email = socket.data.email;
+    socket.join(`user:${email}`);
+    console.log(`[realtime] connected ${email} (${socket.id})`);
+    socket.on('disconnect', (reason) => console.log(`[realtime] disconnected ${email} — ${reason}`));
+  });
+  setRealtimeLocal(deployIo);
+
+  httpServer.listen(PORT, () => {
+    console.log(`DEPLOY mode — web + API + realtime on http://localhost:${PORT}`);
+  });
+} else {
+  // ============================================================
+  //  START (sandbox mode)
+  // ============================================================
+  app.listen(PORT, () => {
+    console.log(`API server running at http://localhost:${PORT}`);
+    connectRealtimeBridge();
+  });
+}

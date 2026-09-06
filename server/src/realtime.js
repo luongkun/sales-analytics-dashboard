@@ -1,7 +1,10 @@
 /**
- * realtime.js — cầu nối Express (3001) → socket.io service (3003)
- * Kết nối như client "system" (JWT system@realtime.internal) và phát 'broadcast'
- * → service relay tới room tương ứng cho các client user.
+ * realtime.js — phát realtime event cho client
+ *
+ * 2 chế độ:
+ * - SANDBOX (mặc định): cầu nối socket.io-client → service 3003 (qua gateway Caddy)
+ * - DEPLOY=1 (Render/hosting 1 process): socket.io server gắn trực tiếp vào Express —
+ *   gọi setRealtimeLocal(io) lúc khởi động, broadcast() phát thẳng in-process.
  */
 import { io } from 'socket.io-client';
 import jwt from 'jsonwebtoken';
@@ -14,6 +17,12 @@ const SYSTEM_EMAIL = 'system@realtime.internal';
 
 let socket = null;
 let connected = false;
+let localIo = null; // DEPLOY mode: socket.io server in-process
+
+/** DEPLOY mode — đăng ký io server nội bộ, bỏ qua cầu nối 3003 */
+export function setRealtimeLocal(ioInstance) {
+  localIo = ioInstance;
+}
 
 export function connectRealtimeBridge() {
   const token = jwt.sign({ email: SYSTEM_EMAIL, role: 'system' }, JWT_SECRET, { expiresIn: '1d' });
@@ -49,6 +58,11 @@ export function connectRealtimeBridge() {
  * @param {unknown} payload
  */
 export function broadcast(room, event, payload) {
+  if (localIo) {
+    if (room) localIo.to(room).emit(event, payload ?? null);
+    else localIo.emit(event, payload ?? null);
+    return;
+  }
   if (socket && socket.connected) {
     socket.emit('broadcast', { room, event, payload });
   }

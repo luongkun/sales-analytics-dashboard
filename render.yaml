@@ -1,0 +1,17 @@
+# Render Blueprint — deploy miễn phí (plan: free)
+# Cách dùng: dashboard.render.com → New → Blueprint → chọn repo này → Apply.
+services:
+  - type: web
+    name: sales-analytics-dashboard
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: DEPLOY
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true
+      # - key: ZAI_API_KEY        # (tuỳ chọn) bật Chatbot AI Lumi — xem DEPLOY.md
+      #   sync: false
