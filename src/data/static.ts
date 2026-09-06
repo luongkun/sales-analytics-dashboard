@@ -94,9 +94,10 @@ export interface SupportChannel {
   image?: string;
 }
 
-import iconZalo from '../assets/icon-zalo.svg';
-import iconTelegram from '../assets/icon-telegram.svg';
-import iconFacebook from '../assets/icon-facebook.svg';
+// Icon brand (wikimedia) — hiển thị thay icon lucide ở trang Hỗ trợ
+const iconZalo = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1280px-Icon_of_Zalo.svg.png?utm_source=vi.wikipedia.org&utm_campaign=index&utm_content=thumbnail';
+const iconTelegram = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/3840px-Telegram_logo.svg.png?utm_source=vi.wikipedia.org&utm_campaign=index&utm_content=thumbnail';
+const iconFacebook = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/2023_Facebook_icon.svg/960px-2023_Facebook_icon.svg.png?utm_source=vi.wikipedia.org&utm_campaign=index&utm_content=thumbnail';
 
 export const SUPPORT_CHANNELS: SupportChannel[] = [
   { id: 'hotline', label: 'Hotline / Zalo', value: '09xx.xxx.xxx', note: 'Kênh nhanh nhất — phản hồi trong vài phút', icon: 'phone' },
