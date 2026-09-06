@@ -1,5 +1,18 @@
 /**
  * analytics.js — tổng hợp dashboard analytics từ DB thật
+ * Contract khớp bundle SPA cũ (index-BO8pxDQf.js):
+ *  - year: {currentYear, yearRevenue, avgPerMonth, bestMonth:{label,revenue}, targetPct, target, aov, completionRate, returnRate}
+ *  - customerStats: {total, newThisMonth, retentionRate}
+ *  - acquisition: [{source, value}]
+ *  - topCustomers: [{rank, name, email, totalSpent, orders, memberSince}]
+ *  - quarterly: [{quarter, thisYear, lastYear}]
+ *  - categoryRevenue: [{name, category, value, revenue, color, percent}]
+ *  - regionRevenue: [{region, q1, q2, q3, q4, revenue, percent}]
+ *  - topProducts: [{id, name, sold, sales, category, revenue, trend}]
+ *  - orderStatus: [{status, name, value, count, color, percent}]
+ *  - orderStats: {total, completed, processing, cancelled, canceled}
+ *  - monthlyRevenue: [{month, revenue, customers}]
+ *  - recentOrders: [{...,date: 'dd/mm/yyyy HH:mm'}]
  */
 import db from './db.js';
 
@@ -10,15 +23,38 @@ const CATEGORIES = {
   'PRD-CANVA': 'Thiết kế',
   'PRD-CHATGPT': 'AI & Công cụ',
 };
+const CATEGORY_COLORS = {
+  'AI & Công cụ': '#3b82f6', // blue
+  'Giải trí': '#8b5cf6',     // violet
+  'Thiết kế': '#10b981',     // emerald
+  'Khác': '#f59e0b',         // amber
+};
 const STATUS_KEYS = [
-  ['Hoàn thành', 'completed'],
-  ['Đang xử lý', 'processing'],
-  ['Đã hủy', 'cancelled'],
+  ['Hoàn thành', 'completed', '#10b981'], // emerald
+  ['Đang xử lý', 'processing', '#f59e0b'], // amber
+  ['Đã hủy', 'cancelled', '#f43f5e'],    // rose
 ];
+const SOURCE_LABELS = {
+  organic: 'Tìm kiếm tự nhiên',
+  facebook: 'Facebook',
+  google: 'Google',
+  referral: 'Giới thiệu',
+};
+const YEAR_TARGET = 2_000_000_000; // mục tiêu doanh thu năm 2 tỷ
 
 function parseItems(o) {
   try { return JSON.parse(o.items || '[]'); } catch { return []; }
 }
+const dd = (n) => String(n).padStart(2, '0');
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return `${dd(d.getDate())}/${dd(d.getMonth() + 1)}/${d.getFullYear()} ${dd(d.getHours())}:${dd(d.getMinutes())}`;
+}
+function fmtDateOnly(ts) {
+  const d = new Date(ts);
+  return `${dd(d.getDate())}/${dd(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+const quarterOf = (ts) => Math.floor(new Date(ts).getMonth() / 3) + 1;
 
 export function getAnalytics() {
   const now = new Date();
@@ -26,7 +62,6 @@ export function getAnalytics() {
   const users = db.prepare('SELECT * FROM users').all();
 
   // ---------- summary ----------
-  const MONTH = 30 * 86_400_000;
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
   const notCancelled = (o) => o.status !== 'Đã hủy';
@@ -43,16 +78,69 @@ export function getAnalytics() {
   const newCustomers = users.filter((u) => u.createdAt >= now.getTime() - 30 * 86_400_000).length;
   const prevCustomers = users.filter((u) => u.createdAt >= now.getTime() - 60 * 86_400_000 && u.createdAt < now.getTime() - 30 * 86_400_000).length;
 
-  // ---------- monthlyRevenue (12 tháng gần nhất) ----------
+  // ---------- year (object — bundle đọc bestMonth.label / targetPct / aov) ----------
+  const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
+  const lastYearStart = new Date(now.getFullYear() - 1, 0, 1).getTime();
+  const thisYearOrders = valid.filter((o) => o.timestamp >= yearStart);
+  const lastYearOrders = valid.filter((o) => o.timestamp >= lastYearStart && o.timestamp < yearStart);
+  const yearRevenue = sum(thisYearOrders);
+  const monthsElapsed = now.getMonth() + 1;
+  const avgPerMonth = yearRevenue / Math.max(1, monthsElapsed);
+
+  // tháng cao nhất năm nay (label khớp monthlyRevenue "T5/26")
+  const monthRevMap = new Map();
+  thisYearOrders.forEach((o) => {
+    const d = new Date(o.timestamp);
+    const label = `T${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`;
+    monthRevMap.set(label, (monthRevMap.get(label) || 0) + o.total);
+  });
+  let bestMonth = { label: 'T1/' + String(now.getFullYear()).slice(2), revenue: 0 };
+  for (const [label, revenue] of monthRevMap) {
+    if (revenue > bestMonth.revenue) bestMonth = { label, revenue };
+  }
+
+  const totalOrdersAll = orders.length || 1;
+  const completedCount = orders.filter((o) => o.status === 'Hoàn thành').length;
+  const cancelledCount = orders.filter((o) => o.status === 'Đã hủy').length;
+
+  const year = {
+    currentYear: now.getFullYear(),
+    yearRevenue,
+    avgPerMonth,
+    bestMonth,
+    target: YEAR_TARGET,
+    targetPct: (yearRevenue / YEAR_TARGET) * 100,
+    aov: yearRevenue / Math.max(1, thisYearOrders.length),
+    completionRate: (completedCount / totalOrdersAll) * 100,
+    returnRate: (cancelledCount / totalOrdersAll) * 100,
+  };
+
+  // ---------- quarterly (YoY: quý năm nay vs năm trước) ----------
+  const qThis = [0, 0, 0, 0];
+  const qLast = [0, 0, 0, 0];
+  thisYearOrders.forEach((o) => { qThis[quarterOf(o.timestamp) - 1] += o.total; });
+  lastYearOrders.forEach((o) => { qLast[quarterOf(o.timestamp) - 1] += o.total; });
+  const quarterly = [1, 2, 3, 4].map((q) => ({
+    quarter: `Q${q}`,
+    thisYear: qThis[q - 1],
+    lastYear: qLast[q - 1],
+  }));
+
+  // ---------- monthlyRevenue (12 tháng gần nhất + customers) ----------
   const monthlyRevenue = [];
   for (let i = 11; i >= 0; i--) {
     const start = new Date(now.getFullYear(), now.getMonth() - i, 1).getTime();
     const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
-    const rev = sum(valid.filter((o) => o.timestamp >= start && o.timestamp < end));
-    monthlyRevenue.push({ month: `T${new Date(start).getMonth() + 1}/${String(new Date(start).getFullYear()).slice(2)}`, revenue: rev });
+    const monthOrders = valid.filter((o) => o.timestamp >= start && o.timestamp < end);
+    monthlyRevenue.push({
+      month: `T${new Date(start).getMonth() + 1}/${String(new Date(start).getFullYear()).slice(2)}`,
+      revenue: sum(monthOrders),
+      orders: monthOrders.length, // trang Báo cáo: bảng 12 tháng cột Đơn hàng
+      customers: new Set(monthOrders.map((o) => o.email)).size,
+    });
   }
 
-  // ---------- categoryRevenue ----------
+  // ---------- categoryRevenue (bundle donut: name + value + color) ----------
   const catMap = new Map();
   valid.forEach((o) => parseItems(o).forEach((it) => {
     const cat = CATEGORIES[it.productId] || 'Khác';
@@ -60,33 +148,96 @@ export function getAnalytics() {
   }));
   const catTotal = [...catMap.values()].reduce((a, b) => a + b, 0) || 1;
   const categoryRevenue = [...catMap.entries()]
-    .map(([category, revenue]) => ({ category, revenue, percent: Math.round((revenue / catTotal) * 100) }))
+    .map(([category, revenue]) => ({
+      name: category,                    // bundle: legend + "Dẫn đầu"
+      category,                          // compat
+      value: revenue,                    // bundle: Pie dataKey="value"
+      revenue,                           // compat
+      color: CATEGORY_COLORS[category] || '#94a3b8',
+      percent: Math.round((revenue / catTotal) * 100),
+    }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // ---------- regionRevenue (theo user của đơn) ----------
-  const regionMap = new Map();
+  // ---------- regionRevenue (bundle: XAxis region + 4 Bar q1..q4) ----------
   const userRegion = new Map(users.map((u) => [u.email, u.region || 'Miền Nam']));
+  const regionQ = new Map(); // region -> [q1,q2,q3,q4]
+  const regionTotalMap = new Map();
   valid.forEach((o) => {
     const r = userRegion.get(o.email) || 'Miền Nam';
-    regionMap.set(r, (regionMap.get(r) || 0) + o.total);
+    if (!regionQ.has(r)) regionQ.set(r, [0, 0, 0, 0]);
+    const q = regionQ.get(r);
+    q[quarterOf(o.timestamp) - 1] += o.total;
+    regionTotalMap.set(r, (regionTotalMap.get(r) || 0) + o.total);
   });
-  const regionTotal = [...regionMap.values()].reduce((a, b) => a + b, 0) || 1;
-  const regionRevenue = [...regionMap.entries()]
-    .map(([region, revenue]) => ({ region, revenue, percent: Math.round((revenue / regionTotal) * 100) }))
+  const regionTotal = [...regionTotalMap.values()].reduce((a, b) => a + b, 0) || 1;
+  const regionRevenue = [...regionQ.entries()]
+    .map(([region, q]) => ({
+      region,
+      q1: q[0], q2: q[1], q3: q[2], q4: q[3],
+      revenue: q[0] + q[1] + q[2] + q[3],
+      percent: Math.round(((q[0] + q[1] + q[2] + q[3]) / regionTotal) * 100),
+    }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // ---------- topProducts ----------
+  // ---------- topProducts (bundle: cột sold + badge category) ----------
   const prodMap = new Map();
   valid.forEach((o) => parseItems(o).forEach((it) => {
-    if (!prodMap.has(it.productId)) prodMap.set(it.productId, { id: it.productId, name: it.name, sales: 0, revenue: 0 });
+    if (!prodMap.has(it.productId)) {
+      prodMap.set(it.productId, {
+        id: it.productId,
+        name: it.name,
+        sales: 0,
+        revenue: 0,
+        category: CATEGORIES[it.productId] || 'Khác',
+      });
+    }
     const p = prodMap.get(it.productId);
     p.sales += it.quantity;
     p.revenue += (it.price || 0) * it.quantity;
   }));
   const topProducts = [...prodMap.values()]
-    .map((p) => ({ ...p, trend: Math.round((Math.sin(p.sales) + 1.4) * 18) }))
+    .map((p) => ({ ...p, sold: p.sales, trend: Math.round((Math.sin(p.sales) + 1.4) * 18) }))
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+    .slice(0, 8);
+
+  // ---------- customerStats / acquisition / topCustomers ----------
+  const buyerStats = new Map(); // email -> {orders, spent}
+  valid.forEach((o) => {
+    if (!buyerStats.has(o.email)) buyerStats.set(o.email, { orders: 0, spent: 0 });
+    const b = buyerStats.get(o.email);
+    b.orders += 1;
+    b.spent += o.total;
+  });
+  const buyers = [...buyerStats.values()];
+  const repeatBuyers = buyers.filter((b) => b.orders >= 2).length;
+  const customerStats = {
+    total: users.length,
+    newThisMonth: users.filter((u) => u.createdAt >= thisMonthStart).length,
+    retentionRate: buyers.length ? (repeatBuyers / buyers.length) * 100 : 0,
+  };
+
+  const sourceMap = new Map();
+  users.forEach((u) => {
+    const key = u.source || 'organic';
+    sourceMap.set(key, (sourceMap.get(key) || 0) + 1);
+  });
+  const acquisition = [...sourceMap.entries()]
+    .map(([source, value]) => ({ source: SOURCE_LABELS[source] || 'Khác', value }))
+    .sort((a, b) => b.value - a.value);
+
+  const userMap = new Map(users.map((u) => [u.email, u]));
+  const topCustomers = [...buyerStats.entries()]
+    .map(([email, b]) => ({
+      rank: 0,
+      name: userMap.get(email)?.name || email,
+      email,
+      totalSpent: b.spent,
+      orders: b.orders,
+      memberSince: fmtDateOnly(userMap.get(email)?.createdAt || now.getTime()),
+    }))
+    .sort((a, b) => b.totalSpent - a.totalSpent)
+    .slice(0, 10)
+    .map((c, i) => ({ ...c, rank: i + 1 }));
 
   // ---------- orderTrend (14 ngày gần) ----------
   const orderTrend = [];
@@ -95,13 +246,13 @@ export function getAnalytics() {
     const dayEnd = dayStart + 86_400_000;
     const dayOrders = valid.filter((o) => o.timestamp >= dayStart && o.timestamp < dayEnd);
     orderTrend.push({
-      date: `${String(new Date(dayStart).getDate()).padStart(2, '0')}/${String(new Date(dayStart).getMonth() + 1).padStart(2, '0')}`,
+      date: `${dd(new Date(dayStart).getDate())}/${dd(new Date(dayStart).getMonth() + 1)}`,
       orders: dayOrders.length,
       revenue: sum(dayOrders),
     });
   }
 
-  // ---------- recentOrders ----------
+  // ---------- recentOrders (bundle in e.date thô → format sẵn dd/mm/yyyy HH:mm) ----------
   const nameMap = new Map(users.map((u) => [u.email, u.name]));
   const recentOrders = [...orders]
     .sort((a, b) => b.timestamp - a.timestamp)
@@ -110,31 +261,35 @@ export function getAnalytics() {
       id: o.id,
       customer: nameMap.get(o.email) || o.email,
       product: parseItems(o).map((i) => i.name).join(', ') || '—',
+      quantity: parseItems(o).reduce((s, i) => s + i.quantity, 0),
       amount: o.total,
       status: o.status,
-      date: new Date(o.timestamp).toISOString(),
+      date: fmtDate(o.timestamp),
     }));
 
-  // ---------- orderStatus + orderStats ----------
+  // ---------- orderStatus (bundle: Pie dataKey="value" + Cell color) + orderStats ----------
   const statusCount = { 'Hoàn thành': 0, 'Đang xử lý': 0, 'Đã hủy': 0 };
   orders.forEach((o) => { statusCount[o.status] = (statusCount[o.status] || 0) + 1; });
-  const totalOrders = orders.length || 1;
-  const orderStatus = STATUS_KEYS.map(([label, key]) => ({
+  const orderStatus = STATUS_KEYS.map(([label, key, color]) => ({
     status: key,
+    name: label,                    // bundle: legend/tooltip name
+    value: statusCount[label] || 0, // bundle: Pie value
     count: statusCount[label] || 0,
-    percent: Math.round(((statusCount[label] || 0) / totalOrders) * 100),
+    color,
+    percent: Math.round(((statusCount[label] || 0) / totalOrdersAll) * 100),
   }));
   const orderStats = {
     total: orders.length,
     completed: statusCount['Hoàn thành'] || 0,
     processing: statusCount['Đang xử lý'] || 0,
     cancelled: statusCount['Đã hủy'] || 0,
+    canceled: statusCount['Đã hủy'] || 0, // bundle KPI đọc n.canceled (US spelling)
   };
 
   return {
     ok: true,
     generatedAt: Date.now(),
-    year: now.getFullYear(),
+    year,
     summary: {
       totalRevenue: sum(valid),
       totalOrders: orders.length,
@@ -149,6 +304,10 @@ export function getAnalytics() {
     categoryRevenue,
     regionRevenue,
     topProducts,
+    quarterly,
+    customerStats,
+    acquisition,
+    topCustomers,
     orderTrend,
     recentOrders,
     orderStatus,
@@ -176,7 +335,7 @@ export function getDailyRevenue(month) {
     const dayOrders = orders.filter((o) => o.timestamp >= dayStart && o.timestamp < dayEnd);
     const uniqCustomers = new Set(dayOrders.map((o) => o.email)).size;
     result.push({
-      day: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`,
+      day: `${dd(d)}/${dd(m)}`,
       revenue: dayOrders.reduce((s, o) => s + o.total, 0),
       orders: dayOrders.length,
       customers: uniqCustomers,

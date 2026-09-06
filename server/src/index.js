@@ -145,7 +145,8 @@ app.post('/api/auth/google', async (req, res) => {
 
 app.post('/api/auth/send-code', auth, (req, res) => {
   const code = genVerifyCode(req.user.email);
-  res.json({ ok: true, devCode: code });
+  // bundle cũ đọc e.demo + e.devCode (modal đổi email/mk) và e.code (Profile) — trả đủ 3 field
+  res.json({ ok: true, demo: true, devCode: code, code });
 });
 
 app.post('/api/auth/change-email', auth, (req, res) => {
@@ -272,7 +273,36 @@ app.post('/api/upgrades/purchase', auth, (req, res) => {
   createTransaction({ id: `TX-${Date.now()}`, email: user.email, type: 'purchase', amount: -p, timestamp: Date.now() });
   const updated = getUser(user.email);
   broadcast(`user:${user.email}`, 'user:updated', { email: user.email, reason: 'upgrade', actor: user.email, user: publicUser(updated) });
-  res.json({ ok: true, balance: updated.balance });
+  // bundle cũ setState từ response: {balance, purchasedUpgrades}
+  res.json({ ok: true, balance: updated.balance, purchasedUpgrades: getPurchases(user.email) });
+});
+
+// ============================================================
+//  PROFILE (bundle cũ gọi PUT /profile + POST /profile/migrate)
+// ============================================================
+app.put('/api/profile', auth, (req, res) => {
+  const { name, avatar } = req.body || {};
+  const fields = {};
+  if (typeof name === 'string' && name.trim().length >= 2) fields.name = name.trim();
+  if (typeof avatar === 'string' || avatar === null) fields.avatar = avatar;
+  if (Object.keys(fields).length === 0) return res.status(400).json({ error: 'Không có thay đổi hợp lệ' });
+  updateUser(req.user.email, fields);
+  broadcastUserUpdated(req.user.email, req.user.email);
+  broadcast(null, 'users:changed', { type: 'profile', email: req.user.email, actor: req.user.email });
+  res.json({ ok: true, user: publicUser(getUser(req.user.email)) });
+});
+
+app.post('/api/profile/migrate', auth, (req, res) => {
+  // migration từ localStorage cũ — server là nguồn sự thật, chỉ nhận name/avatar hợp lệ
+  const { name, avatar } = req.body || {};
+  const fields = {};
+  if (typeof name === 'string' && name.trim().length >= 2 && !name.toLowerCase().includes('tài khoản')) fields.name = name.trim();
+  if (typeof avatar === 'string' && avatar.startsWith('gradient:')) fields.avatar = avatar;
+  if (Object.keys(fields).length > 0) {
+    updateUser(req.user.email, fields);
+    broadcastUserUpdated(req.user.email, req.user.email);
+  }
+  res.json({ ok: true, user: publicUser(getUser(req.user.email)) });
 });
 
 // ============================================================
@@ -413,7 +443,7 @@ app.put('/api/admin/users/:email', auth, requireAdmin, (req, res) => {
   const email = String(req.params.email).toLowerCase();
   const target = getUser(email);
   if (!target) return res.status(404).json({ error: 'Không tìm thấy người dùng' });
-  const { name, role, avatar, vipOverride, balance, balanceDelta, balanceAction, amount } = req.body || {};
+  const { name, role, avatar, vipOverride, balance, balanceDelta, balanceAction, balanceAdjust, amount } = req.body || {};
   const fields = {};
   if (typeof name === 'string' && name.trim().length >= 2) fields.name = name.trim();
   if (role === 'admin' || role === 'member') fields.role = role;
@@ -431,6 +461,12 @@ app.put('/api/admin/users/:email', auth, requireAdmin, (req, res) => {
       fields.balance = next;
       createTransaction({ id: `TX-${Date.now()}`, email, type: 'admin_topup', amount: balanceAction === 'add' ? amt : -amt, timestamp: Date.now() });
     }
+  } else if (balanceAdjust !== undefined && Number.isFinite(Number(balanceAdjust)) && Number(balanceAdjust) !== 0) {
+    // bundle cũ (UserEditModal) gửi balanceAdjust = số có dấu (dương cộng, âm trừ)
+    const delta = Math.round(Number(balanceAdjust));
+    const next = Math.max(0, target.balance + delta);
+    fields.balance = next;
+    createTransaction({ id: `TX-${Date.now()}`, email, type: 'admin_topup', amount: next - target.balance, timestamp: Date.now() });
   }
   updateUser(email, fields);
   broadcastUserUpdated(email, req.user.email);
@@ -455,26 +491,30 @@ app.post('/api/admin/users/bulk', auth, requireAdmin, (req, res) => {
   const { action, emails, role } = req.body || {};
   if (!Array.isArray(emails) || emails.length === 0) return res.status(400).json({ error: 'Danh sách email trống' });
   const list = emails.map((e) => String(e).toLowerCase()).filter((e) => e && e !== req.user.email);
+  const skipped = emails.map((e) => String(e).toLowerCase()).filter((e) => !e || e === req.user.email || !getUser(String(e).toLowerCase()));
   if (action === 'delete') {
+    const affected = list.filter((e) => getUser(e)).length;
     list.forEach((e) => {
       if (getUser(e)) {
         deleteUser(e);
         broadcast(`user:${e}`, 'user:deleted', { email: e, reason: 'deleted', actor: req.user.email });
       }
     });
-    broadcast(null, 'users:changed', { type: 'bulk-delete', count: list.length, actor: req.user.email });
+    broadcast(null, 'users:changed', { type: 'bulk-delete', count: affected, actor: req.user.email });
     broadcast(null, 'analytics:changed', { reason: 'bulk-delete', email: req.user.email });
-    return res.json({ ok: true, deleted: list.length });
+    // bundle cũ đọc o.affected + o.skipped.length
+    return res.json({ ok: true, deleted: affected, affected, skipped });
   }
   if (action === 'role' && (role === 'admin' || role === 'member')) {
+    const affected = list.filter((e) => getUser(e)).length;
     list.forEach((e) => {
       if (getUser(e)) {
         updateUser(e, { role });
         broadcastUserUpdated(e, req.user.email);
       }
     });
-    broadcast(null, 'users:changed', { type: 'bulk-role', count: list.length, role, actor: req.user.email });
-    return res.json({ ok: true, updated: list.length });
+    broadcast(null, 'users:changed', { type: 'bulk-role', count: affected, role, actor: req.user.email });
+    return res.json({ ok: true, updated: affected, affected, skipped });
   }
   return res.status(400).json({ error: 'Hành động không hợp lệ' });
 });
@@ -529,7 +569,16 @@ app.get('/api/admin/payments/config', auth, requireAdmin, (req, res) => {
     ok: true,
     hasSecret: !!secret,
     secret,
-    bank: { bin: BANK.bin, accountNumber: BANK.accountNumber, accountName: BANK.accountName },
+    // bundle cũ đọc: e.endpoint, e.secret, e.bank.name/.short/.accountNo/.accountName
+    endpoint: '/api/payments/webhook',
+    bank: {
+      name: 'Vietcombank',
+      short: 'VCB',
+      bin: BANK.bin,
+      accountNo: BANK.accountNumber,
+      accountNumber: BANK.accountNumber,
+      accountName: BANK.accountName,
+    },
     momo: { number: '0368852235', name: 'NGUYỄN THẾ LƯƠNG' },
     webhookPath: '/api/payments/webhook',
     createdAt: Number(getSetting('webhook_secret_created')) || null,
@@ -546,8 +595,10 @@ app.post('/api/admin/payments/config/secret', auth, requireAdmin, (req, res) => 
 
 app.get('/api/admin/payments', auth, requireAdmin, (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 25));
-  const payments = listPayments(limit).map((p) => ({ ...p, result: p.result ? JSON.parse(p.result) : null }));
-  res.json({ ok: true, payments });
+  const all = listPayments(1000000);
+  const payments = all.slice(0, limit).map((p) => ({ ...p, result: p.result ? JSON.parse(p.result) : null }));
+  // bundle cũ đọc t.total (tổng số payment)
+  res.json({ ok: true, payments, total: all.length });
 });
 
 app.get('/api/admin/payments/logs', auth, requireAdmin, (req, res) => {
@@ -569,7 +620,8 @@ app.get('/api/analytics', auth, (req, res) => {
 
 app.get('/api/analytics/daily', auth, (req, res) => {
   try {
-    res.json(getDailyRevenue(req.query.month));
+    // bundle cũ đọc (await ...).daily || [] → phải bọc {daily: [...]}
+    res.json({ ok: true, daily: getDailyRevenue(req.query.month) });
   } catch (err) {
     console.error('Analytics daily error:', err);
     res.status(500).json({ error: 'Không thể tính doanh thu theo ngày' });
