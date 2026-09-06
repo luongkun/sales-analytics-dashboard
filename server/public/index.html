@@ -106,7 +106,7 @@ window.__topupModal = function (t, user) {
   h.textContent = 'Nạp tiền thành công! 🎉';
   h.style.cssText = 'margin:16px 24px 4px;font-size:19px;font-weight:800';
   var sub = document.createElement('p');
-  sub.textContent = 'Hệ thống đã xác nhận giao dịch chuyển khoản';
+  sub.textContent = t.admin ? 'Quản trị viên đã cộng tiền vào tài khoản của bạn' : 'Hệ thống đã xác nhận giao dịch chuyển khoản';
   sub.style.cssText = 'margin:0 24px 18px;font-size:13px;color:' + (dark ? '#9ca3af' : '#6b7280');
   var rows = document.createElement('div');
   rows.style.cssText = 'margin:0 20px 6px;display:flex;flex-direction:column;gap:8px';
@@ -142,6 +142,32 @@ window.__topupModal = function (t, user) {
 <style>
 @keyframes __pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 </style>
+<script>
+/* Topup notifications — poll 10s + refresh tức thì khi nhận realtime user:updated (topup).
+   Ghi window.__topupNotifs + bắn event 'topup-notifs' → NotificationContext (bundle đã patch) merge vào chuông thông báo. */
+(function () {
+  window.__topupNotifs = [];
+  async function poll() {
+    try {
+      var tok = localStorage.getItem('auth-token');
+      if (!tok) { if (window.__topupNotifs.length) { window.__topupNotifs = []; window.dispatchEvent(new Event('topup-notifs')); } return; }
+      var r = await fetch('/api/notifications/topups', { headers: { Authorization: 'Bearer ' + tok } });
+      if (!r.ok) return;
+      var d = await r.json();
+      var items = d.items || [];
+      // i18n: source string theo locale app (localStorage 'locale')
+      if (localStorage.getItem('locale') === 'en') {
+        items.forEach(function (it) { if (it.params && it.params.sourceEn) it.params.source = it.params.sourceEn; });
+      }
+      window.__topupNotifs = items;
+      window.dispatchEvent(new Event('topup-notifs'));
+    } catch (e) { /* ignore */ }
+  }
+  window.__topupNotifsPoll = poll;
+  poll();
+  setInterval(poll, 10000);
+})();
+</script>
 </head>
   <body>
     <div id="root"></div>

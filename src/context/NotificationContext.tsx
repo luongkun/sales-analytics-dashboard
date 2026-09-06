@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAnalytics } from '../lib/analytics';
+import { api } from '../lib/api';
 import { formatCompact, formatRelative } from '../lib/formatters';
 import type { Analytics } from '../lib/types';
 
@@ -89,7 +90,36 @@ function buildNotifications(a: Analytics): NotifItem[] {
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { data } = useAnalytics();
-  const notifications = useMemo<NotifItem[]>(() => (data ? buildNotifications(data) : []), [data]);
+
+  // ===== Topup notifications (webhook / admin cộng) — poll 10s =====
+  const [topups, setTopups] = useState<NotifItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const d = await api<{ items: Array<{ id: string; params: Record<string, string>; timestamp: number }> }>('/notifications/topups');
+        if (!alive) return;
+        setTopups(
+          (d.items || []).map((it) => ({
+            id: it.id,
+            type: 'success' as const,
+            title: `✅ Nạp tiền thành công +${it.params.amount}đ`,
+            message: `${it.params.source} — số dư mới: ${it.params.balance}đ`,
+            minutesAgo: Math.max(0, Math.round((Date.now() - it.timestamp) / 60000)),
+            linkTo: 'topup',
+          }))
+        );
+      } catch { /* ignore */ }
+    };
+    load();
+    const timer = setInterval(load, 10_000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+
+  const notifications = useMemo<NotifItem[]>(
+    () => [...topups, ...(data ? buildNotifications(data) : [])],
+    [data, topups]
+  );
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try {
       const arr = JSON.parse(localStorage.getItem(READ_KEY) || '[]');

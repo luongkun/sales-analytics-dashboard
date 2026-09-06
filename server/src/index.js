@@ -424,6 +424,42 @@ app.post('/api/payments/webhook', (req, res) => {
 });
 
 // ============================================================
+//  NOTIFICATIONS (topup)
+// ============================================================
+// Gần đây nhất: giao dịch nạp tiền của user (webhook/simulate/admin cộng) → mục thông báo ở chuông
+app.get('/api/notifications/topups', auth, (req, res) => {
+  const txs = db.prepare(
+    `SELECT id, amount, type, timestamp FROM transactions
+     WHERE email = ? AND (type = 'topup' OR (type = 'admin_topup' AND amount > 0))
+     ORDER BY timestamp DESC LIMIT 10`
+  ).all(req.user.email);
+  const u = getUser(req.user.email);
+  const fmt = (n) => Math.round(n).toLocaleString('vi-VN');
+  res.json({
+    ok: true,
+    items: txs.map((tx) => ({
+      id: `topup-${tx.id}`,
+      type: 'success',
+      titleKey: 'notif.topup.title',
+      messageKey: 'notif.topup.message',
+      params: {
+        amount: fmt(Math.abs(tx.amount)),
+        balance: fmt(u ? u.balance : 0),
+        source: tx.type === 'admin_topup'
+          ? 'Quản trị viên đã cộng tiền vào tài khoản'
+          : 'Hệ thống đã xác nhận giao dịch chuyển khoản',
+        sourceEn: tx.type === 'admin_topup'
+          ? 'An administrator has credited your account'
+          : 'The system has confirmed your bank transfer',
+      },
+      timestamp: tx.timestamp,
+      read: false,
+      linkTo: 'topup',
+    })),
+  });
+});
+
+// ============================================================
 //  ADMIN
 // ============================================================
 app.get('/api/admin/users', auth, requireAdmin, (req, res) => {
@@ -466,6 +502,7 @@ app.put('/api/admin/users/:email', auth, requireAdmin, (req, res) => {
   if (vipOverride === null || [0, 1, 2, 3, 4].includes(Number(vipOverride))) {
     fields.vipOverride = vipOverride === null ? null : Number(vipOverride);
   }
+  let adminCredited = 0; // >0 khi admin cộng tiền (add / balanceAdjust dương) → phát topup cho user
   if (Number.isInteger(Number(balance)) && Number(balance) >= 0) {
     fields.balance = Number(balance);
     createTransaction({ id: `TX-${Date.now()}`, email, type: 'admin_set', amount: Number(balance), timestamp: Date.now() });
@@ -474,6 +511,7 @@ app.put('/api/admin/users/:email', auth, requireAdmin, (req, res) => {
     if (amt > 0) {
       const next = balanceAction === 'add' ? target.balance + amt : Math.max(0, target.balance - amt);
       fields.balance = next;
+      if (balanceAction === 'add') adminCredited = amt;
       createTransaction({ id: `TX-${Date.now()}`, email, type: 'admin_topup', amount: balanceAction === 'add' ? amt : -amt, timestamp: Date.now() });
     }
   } else if (balanceAdjust !== undefined && Number.isFinite(Number(balanceAdjust)) && Number(balanceAdjust) !== 0) {
@@ -481,10 +519,17 @@ app.put('/api/admin/users/:email', auth, requireAdmin, (req, res) => {
     const delta = Math.round(Number(balanceAdjust));
     const next = Math.max(0, target.balance + delta);
     fields.balance = next;
+    if (delta > 0) adminCredited = next - target.balance;
     createTransaction({ id: `TX-${Date.now()}`, email, type: 'admin_topup', amount: next - target.balance, timestamp: Date.now() });
   }
   updateUser(email, fields);
-  broadcastUserUpdated(email, req.user.email);
+  if (adminCredited > 0) {
+    // Admin cộng tiền → user nhận modal + thông báo nạp thành công như webhook
+    const updated = getUser(email);
+    broadcast(`user:${email}`, 'user:updated', { email, reason: 'topup', actor: req.user.email, user: publicUser(updated), topup: { amount: adminCredited, bonus: 0, balance: updated.balance, admin: true } });
+  } else {
+    broadcastUserUpdated(email, req.user.email);
+  }
   broadcast(null, 'users:changed', { type: 'updated', email, actor: req.user.email });
   broadcast(null, 'analytics:changed', { reason: 'admin-edit', email: req.user.email });
   res.json({ ok: true, user: publicUser(getUser(email)) });
