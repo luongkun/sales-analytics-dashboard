@@ -1,0 +1,4 @@
+node_modules/
+server/node_modules/
+server/src/data/*.db-wal
+server/src/data/*.db-shm
