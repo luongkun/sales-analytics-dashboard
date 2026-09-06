@@ -24,6 +24,7 @@ import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { genPaymentContent, publicPayment, BANK } from './payments.js';
 import { connectRealtimeBridge, broadcast } from './realtime.js';
 import { creditTopup, publicUser, getVipTier } from './helpers.js';
+import { createPaymentsRouter } from './v1/payments/index.js';
 import db from './db.js';
 
 const app = express();
@@ -32,7 +33,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const TOKEN_7D = '7d';
 
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+// Capture RAW BODY cho mọi request — webhook v1 cần chuỗi gốc để verify HMAC-SHA256
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, _res, buf) => { req.rawBody = buf ? buf.toString('utf8') : ''; },
+}));
 
 // ---------- helpers ----------
 const reqIp = (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
@@ -407,6 +412,12 @@ app.post('/api/payments/webhook', (req, res) => {
   broadcast(null, 'analytics:changed', { reason: 'topup', email: targetUser.email });
   res.json({ ok: true, email: targetUser.email, balance: result.balance, bonus: result.bonus, vipBonus: result.vipBonus });
 });
+
+// ============================================================
+//  PAYMENTS v1 — QR ĐỘNG chuẩn spec (NAP_ID + VietQR URL + HMAC webhook + idempotent)
+//  Chi tiết: server/src/v1/payments/ (controller / service / model / helpers)
+// ============================================================
+app.use('/api/v1/payments', createPaymentsRouter({ auth }));
 
 // ============================================================
 //  ADMIN
