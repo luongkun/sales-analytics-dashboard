@@ -1,4 +1,5 @@
 node_modules/
+dist/
 server/node_modules/
-server/src/data/*.db-wal
-server/src/data/*.db-shm
+*.log
+.env.local

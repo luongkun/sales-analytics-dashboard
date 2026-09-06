@@ -1,0 +1,16 @@
+{
+  "name": "Sales Suite Pro — Analytics Dashboard",
+  "short_name": "Sales Suite",
+  "description": "Dashboard phân tích doanh thu realtime: đơn hàng, khách hàng, báo cáo, quản trị.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b82f6",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
