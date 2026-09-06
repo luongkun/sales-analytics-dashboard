@@ -2,7 +2,7 @@
 # Cách dùng: dashboard.render.com → New → Blueprint → chọn repo này → Apply.
 services:
   - type: web
-    name: sales-analytics-dashboard
+    name: salessuite
     runtime: node
     plan: free
     region: singapore

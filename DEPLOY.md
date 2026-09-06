@@ -7,7 +7,7 @@ không cần Next.js wrapper, không cần Caddy gateway. Chỉ bật khi env `D
 
 1. Vào **https://dashboard.render.com** → đăng ký bằng tài khoản GitHub của bạn (luongkun).
 2. **New → Blueprint** → chọn repo `sales-analytics-dashboard` → Render tự đọc `render.yaml` → **Apply**.
-3. Chờ build ~2-3 phút → mở URL `https://sales-analytics-dashboard.onrender.com`.
+3. Chờ build ~2-3 phút → mở URL `https://salessuite.onrender.com`.
 
 Đăng nhập demo: `admin@luongkun.io` / `123456`.
 
@@ -16,7 +16,7 @@ không cần Next.js wrapper, không cần Caddy gateway. Chỉ bật khi env `D
 Trỏ cổng thanh toán (Casso/SePay) về:
 
 ```
-POST https://<tên-app>.onrender.com/api/payments/webhook?api_key=3730daead355cca9864279e95bfe7fec
+POST https://salessuite.onrender.com/api/payments/webhook?api_key=3730daead355cca9864279e95bfe7fec
 ```
 
 Body ví dụ: `{"content":"NAP100001","amount":50000,"id":"GD123"}` — nạp tiền hiện modal realtime.
