@@ -27,7 +27,7 @@ import {
 import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { genPaymentContent, publicPayment, BANK } from './payments.js';
 import { connectRealtimeBridge, broadcast, setRealtimeLocal } from './realtime.js';
-import { creditTopup, publicUser, getVipTier } from './helpers.js';
+import { creditTopup, publicUser, getVipTier, parseAmountVND } from './helpers.js';
 import db from './db.js';
 
 const app = express();
@@ -360,6 +360,18 @@ app.post('/api/payments/:id/simulate', auth, (req, res) => {
   res.json({ ok: true, payment: publicPayment(getPaymentRequest(p.id)) });
 });
 
+// Task 77: replay guard — webhook KHÔNG có id gửi lại y hệt (cùng NAP + số tiền) trong 90s → chặn, không cộng 2 lần
+const REPLAY_WINDOW_MS = 90_000;
+const replayGuard = new Map(); // key: napCode|amount → ts
+function hitReplayGuard(napCode, amount) {
+  const now = Date.now();
+  for (const [k, ts] of replayGuard) if (now - ts > REPLAY_WINDOW_MS) replayGuard.delete(k); // dọn cũ
+  const key = `${napCode}|${amount}`;
+  if (replayGuard.has(key)) return true;
+  replayGuard.set(key, now);
+  return false;
+}
+
 /** Webhook cổng thanh toán (casso/sepay/custom) — POST /api/payments/webhook?api_key={secret} */
 app.post('/api/payments/webhook', (req, res) => {
   const apikey = String(req.query.api_key || '');
@@ -367,7 +379,7 @@ app.post('/api/payments/webhook', (req, res) => {
   const ip = reqIp(req);
   const body = req.body || {};
   const rawContent = String(body.content || body.description || body.message || '');
-  const amount = Number(body.amount) || 0;
+  const amount = parseAmountVND(body.amount); // Task 77: chịu "25.000" / "1,000,000" / 25000.9 / 25000
   const providerRef = String(body.id || body.referenceCode || body.transactionId || '') || null;
   const provider = /casso/i.test(req.headers['user-agent'] || '') ? 'casso' : /sepay/i.test(req.headers['user-agent'] || '') ? 'sepay' : 'custom';
 
@@ -411,6 +423,11 @@ app.post('/api/payments/webhook', (req, res) => {
   if (providerRef && db.prepare('SELECT 1 FROM transactions WHERE id = ?').get(`TX-${providerRef}`)) {
     addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'duplicate transaction', content: napCode, amount });
     return res.json({ ok: false, error: 'duplicate-transaction' });
+  }
+  // Task 77: không có providerRef → chặn replay cùng (NAP + amount) trong 90s
+  if (!providerRef && hitReplayGuard(napCode, amount)) {
+    addWebhookLog({ ts: Date.now(), ip, provider, ok: 0, reason: 'replay guard (90s, no id)', content: napCode, amount });
+    return res.json({ ok: false, error: 'duplicate-transaction', hint: 'include unique id field to credit repeat transfers' });
   }
 
   const result = creditTopup(targetUser.email, creditAmount, 'topup', providerRef || `${napCode}-${Date.now()}`);
