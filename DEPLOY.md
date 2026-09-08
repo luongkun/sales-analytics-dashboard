@@ -29,34 +29,26 @@ Body ví dụ: `{"content":"NAP100001","amount":50000,"id":"GD123"}` — nạp t
 | **SQLite local không bền qua redeploy** (nếu KHÔNG bật Turso) | Số dư/đơn tạo sau khi deploy bị reset về dữ liệu trong repo | **Bật Turso theo mục dưới — dữ liệu bền vĩnh viễn, free 100%** |
 | 750 giờ/tháng | Chạy 1 service 24/7 là đủ | — |
 
-## 💾 DB bền vững qua redeploy — Turso (free 100%, Task 79)
+## 💾 DB bền vững qua redeploy — Turso (free 100%, Task 79+80 — ✅ ĐÃ BẬT)
 
-Mặc định server dùng file SQLite local (`server/src/data/app.db` — dữ liệu demo trong repo).
-Render free tier có **ổ đĩa tạm thời** → mỗi lần redeploy là mất dữ liệu runtime.
-**Giải pháp chuẩn**: gắn DB cloud Turso (libSQL — cùng ngôn ngữ SQL với SQLite, free tier 9GB):
+✅ **Đã cấu hình và import dữ liệu xong (Task 80)** — không cần thao tác thêm:
 
-1. **Đăng ký** https://turso.tech → **Continue with GitHub** (tài khoản luongkun) — free, không cần thẻ.
-2. **Tạo database** (dùng dashboard UI hoặc CLI):
-   ```bash
-   # cài CLI (nếu dùng dòng lệnh):
-   curl -sSfL https://get.turso.tech/install.sh | bash
-   turso auth signup          # hoặc turso auth login
-   turso db create salessuite --location sin   # Singapore — gần Render Singapore
-   turso db show salessuite --url              # → libsql://salessuite-<org>.turso.io
-   turso db tokens create salessuite           # → token dài eyJhbGciOi...
-   ```
-3. **Gắn vào Render**: Dashboard → service `salessuite` → **Environment** → thêm 2 biến:
-   | Key | Value |
-   |---|---|
-   | `LIBSQL_URL` | `libsql://salessuite-<org>.turso.io` |
-   | `LIBSQL_AUTH_TOKEN` | token vừa tạo |
-   → **Save & Deploy**. Lần chạy đầu: server **tự tạo bảng + tự seed** dữ liệu demo (admin/123456).
-4. **Xong** — từ đó mọi redeploy/sleep/restart dữ liệu đều NGUYÊN VẸN (DB sống trên Turso cloud).
+- DB cloud: `libsql://sales-luongkun.aws-ap-northeast-1.turso.io` (Turso — Tokyo, free 9GB, không cần thẻ)
+- Credentials: 2 biến `LIBSQL_URL` + `LIBSQL_AUTH_TOKEN` nằm trong **`server/.env`** (đã commit) → Render tự đọc khi boot
+- Dữ liệu baseline đã **import khớp 100% repo**: admin 8.407.499đ / 13 users / 8.019 orders / webhook secret `3730daead...` giữ nguyên
+- Từ deploy này trở đi: mọi redeploy / sleep / restart — dữ liệu **NGUYÊN VẸN** trên Turso cloud
 
-Lưu ý:
-- Lần đầu lên Turso, webhook secret là **mới** (random) — vào Admin → Cổng thanh toán xem lại api_key mới.
-- Muốn đưa dữ liệu sandbox hiện tại lên: `sqlite3 server/src/data/app.db .dump > dump.sql` rồi `turso db shell salessuite < dump.sql`.
-- Sandbox/dev KHÔNG set 2 env này → vẫn chạy file local như cũ (một code path, hai môi trường).
+Chi tiết vận hành:
+
+- **Render production**: boot đọc `.env` → nối Turso cloud. Muốn thay token sau này: set `LIBSQL_URL`/`LIBSQL_AUTH_TOKEN` trong Render Environment (process.env **ưu tiên hơn** .env), rồi xoá 2 dòng trong .env.
+- **Sandbox/dev** vẫn chạy SQLite local (test residue không dính DB production):
+  ```bash
+  cd server && ( LIBSQL_URL= LIBSQL_AUTH_TOKEN= setsid nohup node src/index.js >> /tmp/server-3001.log 2>&1 < /dev/null & )
+  ```
+  (empty override vô hiệu hoá .env vì dotenv không đè process.env đã set)
+- 🔐 **Bảo mật**: repo đang public + token read-write trong .env → ai clone được repo đều đọc/ghi được DB. Khuyến nghị mạnh: **chuyển repo về private**, hoặc rotate token (`turso db tokens create sales-luongkun`) rồi set vào Render Environment thay vì .env.
+- **DB trắng mới**: bỏ 2 dòng creds trong .env → boot tự tạo bảng + seed demo (admin/123456) — hành vi tự bootstrap vẫn giữ.
+- Webhook secret giữ nguyên `3730daead...` (đã import baseline) — API key nạp tiền không đổi.
 
 ## Tuỳ chọn
 
