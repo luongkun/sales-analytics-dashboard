@@ -41,22 +41,24 @@ export function publicUser(user) {
 
 /**
  * Parse số tiền webhook về integer VND (Task 77 — chống cộng sai số tiền).
- * Chịu mọi dạng gateway gửi:
- * - JSON number 25000.9        → 25001 (VND không có số lẻ — làm tròn)
+ * Task 78 — NGUYÊN TẮC THEO USER: "nạp bao nhiêu thì có bấy nhiêu, không làm tròn" —
+ * tiền gốc không bao giờ được cộng VƯỢT số tiền nạp → mọi số lẻ đều FLOOR (cắt xuống):
+ * - JSON number 25000 (hoặc 25000.0 float) → 25000 CHÍNH XÁC từng đồng
  * - chuỗi "25000"              → 25000
  * - chuỗi VN "25.000" / "1.000.000" / "1,000,000" / "25 000đ" → 25000 / 1000000
+ * - dữ liệu lỗi 25000.9 (ngân hàng VN không bao giờ gửi số lẻ) → 25000 (floor, ≤ tiền nạp)
  * - chuỗi rác "abc" / rỗng     → 0 (route trả amount-missing)
  */
 export function parseAmountVND(raw) {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? Math.round(raw) : 0;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : 0;
   let s = String(raw ?? '').trim().replace(/[đD\s]/g, '');
   if (!s) return 0;
   if (/^-?\d+$/.test(s)) return parseInt(s, 10);
   // Nhóm 3 chữ số phân tách bởi . hoặc , → hàng nghìn (bỏ hết dấu)
   if (/^-?\d{1,3}([.,]\d{3})+$/.test(s)) return parseInt(s.replace(/[.,]/g, ''), 10);
-  // Còn lại: cố parse thập phân rồi làm tròn ("25,5" → 25.5 → 26)
+  // Còn lại: cố parse thập phân rồi FLOOR ("25,5" → 25 — không bao giờ vượt tiền nạp)
   const f = parseFloat(s.replace(',', '.'));
-  return Number.isFinite(f) ? Math.round(f) : 0;
+  return Number.isFinite(f) ? Math.floor(f) : 0;
 }
 
 /**
@@ -66,7 +68,7 @@ export function parseAmountVND(raw) {
 export function creditTopup(email, amount, type = 'topup', ref = null) {
   const user = getUser(email);
   if (!user) throw new Error('user not found');
-  const amt = Math.round(Number(amount) || 0); // phòng thủ: VND luôn integer
+  const amt = Math.floor(Number(amount) || 0); // Task 78: FLOOR — tiền gốc không bao giờ vượt số tiền nạp
   if (amt <= 0) throw new Error('invalid amount');
   const before = getTotalTopup(email);
   const bonus = Math.floor(amt * 0.1);
