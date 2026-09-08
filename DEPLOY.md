@@ -61,3 +61,5 @@ Chi tiết vận hành:
 cd server && npm install
 DEPLOY=1 PORT=4000 npm start   # mở http://localhost:4000
 ```
+> **Verify Task 80 (2026-09-08):** đã kiểm chứng trên live — nạp 60.000đ cho user test
+> ghi thẳng vào Turso cloud, redeploy sau đó dữ liệu NGUYÊN VẸN (trước đây bị reset).
