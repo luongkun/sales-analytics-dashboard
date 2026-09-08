@@ -460,6 +460,30 @@ app.get('/api/notifications/topups', auth, (req, res) => {
 });
 
 // ============================================================
+//  TOPUP HISTORY (Task 74 — lịch sử nạp tiền trên trang Nạp số dư)
+// ============================================================
+// Số liệu thô (amount/bonus raw, không format) — FE tự format theo locale vi/en
+app.get('/api/topups/history', auth, (req, res) => {
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 10));
+  const txs = db.prepare(
+    `SELECT id, amount, bonus, type, timestamp FROM transactions
+     WHERE email = ? AND (type = 'topup' OR (type = 'admin_topup' AND amount > 0))
+     ORDER BY timestamp DESC LIMIT ?`
+  ).all(req.user.email, limit);
+  res.json({
+    ok: true,
+    count: txs.length,
+    items: txs.map((tx) => ({
+      id: tx.id,
+      amount: Math.abs(tx.amount),
+      bonus: tx.bonus || 0,
+      admin: tx.type === 'admin_topup',
+      timestamp: tx.timestamp,
+    })),
+  });
+});
+
+// ============================================================
 //  ADMIN
 // ============================================================
 app.get('/api/admin/users', auth, requireAdmin, (req, res) => {
