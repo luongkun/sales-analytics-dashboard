@@ -4,22 +4,7 @@ Dashboard phân tích doanh thu realtime — doanh thu, đơn hàng, khách hàn
 
 **Bản đang chạy (live):** https://salessuite.onrender.com
 
----
-
-## ⚠️ Web chuẩn nằm ở đâu? (đọc trước khi chạy)
-
-Repo có **2 phần frontend** — chỉ 1 trong 2 là web chuẩn:
-
-| Thư mục | Là gì | Dùng để |
-|---|---|---|
-| `server/public/` | **WEB CHUẨN** — bundle đã build sẵn (`assets/index-BO8pxDQf.js`), giống hệt web trên Render 100% | **Chạy & deploy** |
-| `src/` | Bản source **tái dựng** (để đọc hiểu code; giao diện chi tiết KHÔNG giống web chuẩn) | Chỉ đọc — **KHÔNG build/deploy từ đây**, vì build ra sẽ khác giao diện web chuẩn |
-
-> Lịch sử: source gốc bị mất trong một lần reset môi trường — web chuẩn vẫn sống nguyên vẹn trong bundle build sẵn. Mọi tính năng mới nhất (NAP_ID, modal "Nạp tiền thành công" realtime, thông báo chuông, icon brand) đều đã nằm trong bundle này.
-
----
-
-## 🚀 Chạy web chuẩn trên máy bạn
+## 🚀 Chạy web chuẩn trên máy bạn (3 lệnh)
 
 ```bash
 git clone https://github.com/luongkun/sales-analytics-dashboard.git
@@ -32,11 +17,6 @@ npm run dev
 - Tài khoản demo: `admin@luongkun.io` / `123456`
 
 Cách gọi trực tiếp tương đương: `cd server && DEPLOY=1 npm start`
-
-> ℹ️ `npm run dev` / `npm start` đều chạy bundle chuẩn trong `server/public/`.
-> `npx vite` (nếu muốn) chỉ chạy bản source tái dựng `src/` — giao diện sẽ khác web chuẩn, và cần backend 3001 chạy sẵn.
-
----
 
 ## Kiểm thử webhook nạp tiền (tiền tự cộng + modal realtime)
 
@@ -51,16 +31,13 @@ curl -X POST "http://localhost:3001/api/payments/webhook?api_key=3730daead355cca
 - `id` là mã tham chiếu duy nhất — bắn lại cùng `id` sẽ bị bỏ qua (idempotent).
 - Nếu đang đăng nhập trong web: modal **"Nạp tiền thành công"** tự bật ngay (số tiền / thưởng / số dư mới) + thông báo trong chuông.
 
----
-
 ## Cấu trúc repo
 
 ```
 sales-analytics-dashboard/
-├── scripts/serve.js        # npm run dev → chạy web chuẩn (DEPLOY=1)
-├── src/                    # source tái dựng (đọc hiểu — không dùng để deploy)
+├── scripts/serve.js        # npm run dev → chạy web chuẩn (DEPLOY=1, tự cài deps)
 ├── server/
-│   ├── public/             # ⭐ WEB CHUẨN — bundle build sẵn (deploy lên Render từ đây)
+│   ├── public/             # ⭐ WEB CHUẨN — bundle build sẵn (Render deploy từ đây)
 │   ├── src/                # backend Express (API + auth + webhook + realtime)
 │   └── src/data/app.db     # SQLite seed (deploy lại Render sẽ reset DB về file này)
 ├── restore-all.sh          # khôi phục 1 lệnh sau reset môi trường
@@ -68,8 +45,13 @@ sales-analytics-dashboard/
 └── DEPLOY.md               # hướng dẫn deploy Render chi tiết
 ```
 
-## Deploy
+## Lưu ý quan trọng
 
-Xem **DEPLOY.md** — Render free, 1 process duy nhất (web + API + realtime), push lên `main` là tự deploy lại.
+- **Web chuẩn = bundle build sẵn trong `server/public/`** — mọi tính năng mới nhất (NAP_ID, modal "Nạp tiền thành công" realtime, thông báo chuông, icon brand) đều nằm trong bundle này.
+- **KHÔNG build lại web từ nguồn khác** — bundle hiện tại là bản chuẩn duy nhất; build lại từ source khác sẽ tạo ra giao diện lệch bản chuẩn.
+- Muốn sửa web: vá trực tiếp bundle trong `server/public/` rồi push (Render tự deploy).
+- Deploy: push lên `main` → Render tự deploy lại; SQLite reset về `server/src/data/app.db` mỗi lần deploy.
 
-> Render free plan: service ngủ sau 15 phút không có request (mở lại mất ~30–60s); SQLite reset về `server/src/data/app.db` mỗi lần deploy lại.
+## Deploy Render
+
+Xem **DEPLOY.md** — free plan, 1 process duy nhất (web + API + realtime + webhook), không cần thẻ ngân hàng.

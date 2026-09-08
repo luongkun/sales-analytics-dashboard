@@ -34,16 +34,15 @@ else
   curl -s -m 3 -o /dev/null "http://localhost:3003/socket.io/?EIO=4&transport=polling" && echo " → OK ✓" || echo " → LỖI! Xem /tmp/realtime-3003.log"
 fi
 
-# ---------- 2. Frontend bundle (public/app) ----------
+# ---------- 2. Frontend bundle (public/app) — WEB CHUẨN từ git, KHÔNG build lại ----------
 if [ -f /home/z/my-project/public/app/index.html ] && ls /home/z/my-project/public/app/assets/index-*.js >/dev/null 2>&1; then
   echo "[2] Frontend bundle /app/: CÒN NGUYÊN ✓"
 else
-  echo "[2] Frontend bundle: MẤT → build lại từ source..."
-  npx tsc -b && npx vite build
+  echo "[2] Frontend bundle: MẤT → khôi phục bundle chuẩn từ git (server/public)..."
+  git -C /home/z/sales-analytics-dashboard checkout -- server/public
   mkdir -p /home/z/my-project/public/app
-  cp -r dist/. /home/z/my-project/public/app/
-  cp /home/z/sales-analytics-dashboard/public/*.{svg,png,webmanifest} /home/z/my-project/public/app/ 2>/dev/null || true
-  echo " → Đã build + deploy ✓"
+  cp -r /home/z/sales-analytics-dashboard/server/public/. /home/z/my-project/public/app/
+  echo " → Đã khôi phục bundle chuẩn ✓ (KHÔNG build lại từ nguồn khác)"
 fi
 
 # ---------- 3. Next.js 3000 (dev server) ----------
