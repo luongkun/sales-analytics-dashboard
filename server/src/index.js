@@ -427,6 +427,7 @@ app.post('/api/payments/webhook', (req, res) => {
 //  NOTIFICATIONS (topup)
 // ============================================================
 // Gần đây nhất: giao dịch nạp tiền của user (webhook/simulate/admin cộng) → mục thông báo ở chuông
+// Task 75: trả đúng read flag + loại bỏ đã xóa (lưu trong notification_state)
 app.get('/api/notifications/topups', auth, (req, res) => {
   const txs = db.prepare(
     `SELECT id, amount, type, timestamp FROM transactions
@@ -435,29 +436,62 @@ app.get('/api/notifications/topups', auth, (req, res) => {
   ).all(req.user.email);
   const u = getUser(req.user.email);
   const fmt = (n) => Math.round(n).toLocaleString('vi-VN');
+  const stRows = db.prepare(`SELECT nid, flag FROM notification_state WHERE email = ?`).all(req.user.email);
+  const readSet = new Set(stRows.filter((r) => r.flag === 'read').map((r) => r.nid));
+  const delSet = new Set(stRows.filter((r) => r.flag === 'deleted').map((r) => r.nid));
   res.json({
     ok: true,
-    items: txs.map((tx) => ({
-      id: `topup-${tx.id}`,
-      type: 'success',
-      titleKey: 'notif.topup.title',
-      messageKey: 'notif.topup.message',
-      params: {
-        amount: fmt(Math.abs(tx.amount)),
-        balance: fmt(u ? u.balance : 0),
-        source: tx.type === 'admin_topup'
-          ? 'Quản trị viên đã cộng tiền vào tài khoản'
-          : 'Hệ thống đã xác nhận giao dịch chuyển khoản',
-        sourceEn: tx.type === 'admin_topup'
-          ? 'An administrator has credited your account'
-          : 'The system has confirmed your bank transfer',
-      },
-      timestamp: tx.timestamp,
-      read: false,
-      linkTo: 'topup',
-    })),
+    items: txs
+      .filter((tx) => !delSet.has(`topup-${tx.id}`))
+      .map((tx) => ({
+        id: `topup-${tx.id}`,
+        type: 'success',
+        titleKey: 'notif.topup.title',
+        messageKey: 'notif.topup.message',
+        params: {
+          amount: fmt(Math.abs(tx.amount)),
+          balance: fmt(u ? u.balance : 0),
+          source: tx.type === 'admin_topup'
+            ? 'Quản trị viên đã cộng tiền vào tài khoản'
+            : 'Hệ thống đã xác nhận giao dịch chuyển khoản',
+          sourceEn: tx.type === 'admin_topup'
+            ? 'An administrator has credited your account'
+            : 'The system has confirmed your bank transfer',
+        },
+        timestamp: tx.timestamp,
+        read: readSet.has(`topup-${tx.id}`),
+        linkTo: 'topup',
+      })),
   });
 });
+
+// ============================================================
+//  NOTIFICATION STATE (Task 75 — persist đã đọc / đã xóa theo user)
+// ============================================================
+app.get('/api/notifications/state', auth, (req, res) => {
+  const rows = db.prepare(`SELECT nid, flag FROM notification_state WHERE email = ?`).all(req.user.email);
+  res.json({
+    ok: true,
+    read: rows.filter((r) => r.flag === 'read').map((r) => r.nid),
+    deleted: rows.filter((r) => r.flag === 'deleted').map((r) => r.nid),
+  });
+});
+
+// ids: mảng notification id (vd 'notif-revenue-record', 'topup-TX-...')
+// Quy tắc: 'deleted' là trạng thái mạnh — không bao giờ bị hạ cấp về 'read' (chống hồi sinh thông báo đã xóa)
+const markNotifState = (flag) => (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? [...new Set(req.body.ids.map(String).filter((x) => x && x.length < 200))].slice(0, 200) : [];
+  if (!ids.length) return res.status(400).json({ error: 'Thiếu danh sách id thông báo' });
+  const stmt = db.prepare(`INSERT INTO notification_state (email, nid, flag, ts) VALUES (?, ?, ?, ?)
+    ON CONFLICT (email, nid) DO UPDATE SET flag = excluded.flag, ts = excluded.ts
+    WHERE notification_state.flag <> 'deleted' OR excluded.flag = 'deleted'`);
+  const run = db.transaction((list) => list.forEach((nid) => stmt.run(req.user.email, nid, flag, Date.now())));
+  run(ids);
+  res.json({ ok: true, count: ids.length });
+};
+app.post('/api/notifications/read', auth, markNotifState('read'));
+app.post('/api/notifications/delete', auth, markNotifState('deleted'));
+app.post('/api/notifications/clear', auth, markNotifState('deleted'));
 
 // ============================================================
 //  TOPUP HISTORY (Task 74 — lịch sử nạp tiền trên trang Nạp số dư)

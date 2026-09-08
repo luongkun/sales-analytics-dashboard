@@ -104,6 +104,14 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_webhook_logs_ts ON webhook_logs(ts DESC);
 
+  CREATE TABLE IF NOT EXISTS notification_state (
+    email TEXT NOT NULL,
+    nid TEXT NOT NULL,
+    flag TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (email, nid)
+  );
+
   CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
