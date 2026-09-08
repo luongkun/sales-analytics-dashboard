@@ -14,7 +14,7 @@
  *  - monthlyRevenue: [{month, revenue, customers}]
  *  - recentOrders: [{...,date: 'dd/mm/yyyy HH:mm'}]
  */
-import db from './db.js';
+import { q } from './db.js';
 
 const CATEGORIES = {
   'PRD-NETFLIX': 'Giải trí',
@@ -56,10 +56,10 @@ function fmtDateOnly(ts) {
 }
 const quarterOf = (ts) => Math.floor(new Date(ts).getMonth() / 3) + 1;
 
-export function getAnalytics() {
+export async function getAnalytics() {
   const now = new Date();
-  const orders = db.prepare('SELECT * FROM orders').all();
-  const users = db.prepare('SELECT * FROM users').all();
+  const orders = await q('SELECT * FROM orders');
+  const users = await q('SELECT * FROM users');
 
   // ---------- summary ----------
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -315,7 +315,7 @@ export function getAnalytics() {
   };
 }
 
-export function getDailyRevenue(month) {
+export async function getDailyRevenue(month) {
   // month: 'YYYY-MM' (mặc định tháng hiện tại)
   const now = new Date();
   let y = now.getFullYear(), m = now.getMonth() + 1;
@@ -324,8 +324,8 @@ export function getDailyRevenue(month) {
   }
   const start = new Date(y, m - 1, 1).getTime();
   const end = new Date(y, m, 1).getTime();
-  const orders = db.prepare('SELECT * FROM orders WHERE timestamp >= ? AND timestamp < ? AND status != ?').all(start, end, 'Đã hủy');
-  const users = db.prepare('SELECT email, name FROM users').all();
+  const orders = await q('SELECT * FROM orders WHERE timestamp >= ? AND timestamp < ? AND status != ?', [start, end, 'Đã hủy']);
+  const users = await q('SELECT email, name FROM users');
   const nameMap = new Map(users.map((u) => [u.email, u.name]));
   const daysInMonth = new Date(y, m, 0).getDate();
   const result = [];

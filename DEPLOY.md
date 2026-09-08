@@ -26,8 +26,37 @@ Body ví dụ: `{"content":"NAP100001","amount":50000,"id":"GD123"}` — nạp t
 | Giới hạn | Tác động | Cách giảm tác động |
 |---|---|---|
 | **Sleep sau 15 phút không có request** | Lần mở tiếp theo chậm ~30-60s | Dùng UptimeRobot (free) ping URL mỗi 5-10 phút |
-| **SQLite không bền vững qua mỗi lần deploy** | Số dư/đơn tạo sau khi deploy bị reset về dữ liệu trong repo | Đây là app demo — chấp nhận được; muốn bền: nâng plan có disk hoặc chuyển Postgres |
+| **SQLite local không bền qua redeploy** (nếu KHÔNG bật Turso) | Số dư/đơn tạo sau khi deploy bị reset về dữ liệu trong repo | **Bật Turso theo mục dưới — dữ liệu bền vĩnh viễn, free 100%** |
 | 750 giờ/tháng | Chạy 1 service 24/7 là đủ | — |
+
+## 💾 DB bền vững qua redeploy — Turso (free 100%, Task 79)
+
+Mặc định server dùng file SQLite local (`server/src/data/app.db` — dữ liệu demo trong repo).
+Render free tier có **ổ đĩa tạm thời** → mỗi lần redeploy là mất dữ liệu runtime.
+**Giải pháp chuẩn**: gắn DB cloud Turso (libSQL — cùng ngôn ngữ SQL với SQLite, free tier 9GB):
+
+1. **Đăng ký** https://turso.tech → **Continue with GitHub** (tài khoản luongkun) — free, không cần thẻ.
+2. **Tạo database** (dùng dashboard UI hoặc CLI):
+   ```bash
+   # cài CLI (nếu dùng dòng lệnh):
+   curl -sSfL https://get.turso.tech/install.sh | bash
+   turso auth signup          # hoặc turso auth login
+   turso db create salessuite --location sin   # Singapore — gần Render Singapore
+   turso db show salessuite --url              # → libsql://salessuite-<org>.turso.io
+   turso db tokens create salessuite           # → token dài eyJhbGciOi...
+   ```
+3. **Gắn vào Render**: Dashboard → service `salessuite` → **Environment** → thêm 2 biến:
+   | Key | Value |
+   |---|---|
+   | `LIBSQL_URL` | `libsql://salessuite-<org>.turso.io` |
+   | `LIBSQL_AUTH_TOKEN` | token vừa tạo |
+   → **Save & Deploy**. Lần chạy đầu: server **tự tạo bảng + tự seed** dữ liệu demo (admin/123456).
+4. **Xong** — từ đó mọi redeploy/sleep/restart dữ liệu đều NGUYÊN VẸN (DB sống trên Turso cloud).
+
+Lưu ý:
+- Lần đầu lên Turso, webhook secret là **mới** (random) — vào Admin → Cổng thanh toán xem lại api_key mới.
+- Muốn đưa dữ liệu sandbox hiện tại lên: `sqlite3 server/src/data/app.db .dump > dump.sql` rồi `turso db shell salessuite < dump.sql`.
+- Sandbox/dev KHÔNG set 2 env này → vẫn chạy file local như cũ (một code path, hai môi trường).
 
 ## Tuỳ chọn
 

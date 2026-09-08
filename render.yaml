@@ -13,5 +13,15 @@ services:
         value: "1"
       - key: JWT_SECRET
         generateValue: true
+      # Task 79 — DB cloud Turso (giữ dữ liệu qua redeploy, KHÔNG reset nữa):
+      # 1) Đăng ký https://turso.tech (GitHub login, free, không cần thẻ)
+      # 2) Tạo DB:  turso db create salessuite --type schema  hoặc dashboard UI
+      # 3) Lấy URL: turso db show salessuite --url      (libsql://salessuite-<org>.turso.io)
+      # 4) Lấy token: turso db tokens create salessuite
+      # 5) Điền 2 giá trị vào Render Dashboard → Environment → Save & Deploy
+      - key: LIBSQL_URL
+        sync: false          # giá trị điền trong Render Dashboard, không commit vào repo
+      - key: LIBSQL_AUTH_TOKEN
+        sync: false
       # - key: ZAI_API_KEY        # (tuỳ chọn) bật Chatbot AI Lumi — xem DEPLOY.md
       #   sync: false

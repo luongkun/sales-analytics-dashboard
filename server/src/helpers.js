@@ -1,7 +1,8 @@
 /**
  * helpers.js — VIP tiers, publicUser, creditTopup (dùng chung các route)
+ * Task 79: async (libSQL) — mọi caller phải await; creditTopup dùng adjustBalance NGUYÊN TỬ
  */
-import { getUser, updateUser, getTotalTopup, createTransaction, getPurchases } from './db.js';
+import { getUser, adjustBalance, getTotalTopup, createTransaction, getPurchases } from './db.js';
 
 /** Bậc VIP theo tổng nạp (auto) hoặc admin đặt cứng (vipOverride) */
 const TIERS = [
@@ -21,9 +22,9 @@ export function getVipTier(totalTopup, vipOverride) {
   return TIERS.find((t) => topup >= t.min) || null;
 }
 
-export function publicUser(user) {
+export async function publicUser(user) {
   if (!user) return null;
-  const totalTopup = getTotalTopup(user.email);
+  const totalTopup = await getTotalTopup(user.email);
   const vip = getVipTier(totalTopup, user.vipOverride);
   return {
     name: user.name,
@@ -31,7 +32,7 @@ export function publicUser(user) {
     role: user.role,
     balance: user.balance,
     userCode: user.userCode,
-    purchasedUpgrades: getPurchases(user.email),
+    purchasedUpgrades: await getPurchases(user.email),
     avatar: user.avatar,
     totalTopup,
     vipOverride: user.vipOverride ?? null,
@@ -64,20 +65,23 @@ export function parseAmountVND(raw) {
 /**
  * Cộng tiền nạp + bonus (10% cơ bản + VIP bonus theo bậc).
  * Idempotent theo providerRef không xử lý ở đây — caller lo (đánh dấu payment paid).
+ * Task 79: async + adjustBalance NGUYÊN TỬ (balance = balance + delta trong 1 lệnh SQL,
+ * chống lost-update khi 2 request chạy xen kẽ).
  */
-export function creditTopup(email, amount, type = 'topup', ref = null) {
-  const user = getUser(email);
+export async function creditTopup(email, amount, type = 'topup', ref = null) {
+  const user = await getUser(email);
   if (!user) throw new Error('user not found');
   const amt = Math.floor(Number(amount) || 0); // Task 78: FLOOR — tiền gốc không bao giờ vượt số tiền nạp
   if (amt <= 0) throw new Error('invalid amount');
-  const before = getTotalTopup(email);
+  const before = await getTotalTopup(email);
   const bonus = Math.floor(amt * 0.1);
   const tierBefore = getVipTier(before, user.vipOverride);
   const vipBonus = tierBefore ? Math.floor(amt * (tierBefore.bonusPct / 100)) : 0;
   const totalCredit = amt + bonus + vipBonus;
 
-  updateUser(email, { balance: user.balance + totalCredit });
-  createTransaction({
+  const newBalance = await adjustBalance(email, totalCredit);
+  if (newBalance == null) throw new Error('user not found');
+  await createTransaction({
     id: ref ? `TX-${ref}` : `TX-${Date.now()}`,
     email,
     type,
@@ -86,14 +90,14 @@ export function creditTopup(email, amount, type = 'topup', ref = null) {
     timestamp: Date.now(),
   });
 
-  const after = getTotalTopup(email);
+  const after = await getTotalTopup(email);
   const tierAfter = getVipTier(after, user.vipOverride);
   const tierUp = tierAfter && (!tierBefore || tierAfter.level > tierBefore.level)
     ? { level: tierAfter.level, name: tierAfter.name }
     : null;
 
   return {
-    balance: user.balance + totalCredit,
+    balance: newBalance,
     bonus,
     vipBonus,
     totalTopup: after,
