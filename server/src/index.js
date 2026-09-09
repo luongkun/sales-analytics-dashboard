@@ -28,6 +28,7 @@ import { getAnalytics, getDailyRevenue } from './analytics.js';
 import { genPaymentContent, publicPayment, BANK } from './payments.js';
 import { connectRealtimeBridge, broadcast, setRealtimeLocal } from './realtime.js';
 import { creditTopup, publicUser, getVipTier, parseAmountVND } from './helpers.js';
+import { chatComplete, aiMode } from './ai.js';
 
 // Task 79: mọi route giờ là async (libSQL) — wrap bắt lỗi async trả 500 gọn (Express 4 không tự bắt)
 const wrap = (fn) => (req, res, next) =>
@@ -773,15 +774,8 @@ app.get('/api/analytics/daily', auth, wrap(async (req, res) => {
 }));
 
 // ============================================================
-//  CHAT AI (z-ai-web-dev-sdk — backend only)
+//  CHAT AI — ai.js 2 chế độ: ZAI_API_KEY (public open platform) / SDK internal (sandbox)
 // ============================================================
-let zaiPromise = null;
-async function getZai() {
-  if (!zaiPromise) {
-    zaiPromise = import('z-ai-web-dev-sdk').then((m) => m.default.create());
-  }
-  return zaiPromise;
-}
 
 app.get('/api/chat', auth, wrap(async (req, res) => {
   const sessionId = String(req.query.sessionId || '');
@@ -801,30 +795,34 @@ app.post('/api/chat', auth, async (req, res) => {
 
   await addChatMessage(req.user.email, sid, 'user', text);
   try {
-    const zai = await getZai();
     const history = (await getChatMessages(req.user.email, sid)).slice(-12).map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     }));
-    const completion = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Bạn là trợ lý CSKH của shop acc Netflix Trial (Netflix Trial 30 days — 20.000đ/slot, 100 slot). ' +
-            'Trả lời ngắn gọn, thân thiện, tiếng Việt. Hướng dẫn: nạp tiền qua trang "Nạp số dư" (QR tự động), ' +
-            'mua ở trang "Sản phẩm", đơn mới luôn "Đang xử lý" cho tới khi shop gửi thông tin. ' +
-            'Khi được hỏi gì ngoài phạm vi shop, trả lời lịch sự và đưa về chủ đề mua hàng/nạp tiền.',
-        },
-        ...history,
-      ],
-    });
-    const reply = completion?.choices?.[0]?.message?.content || 'Xin lỗi, mình chưa trả lời được. Bạn thử lại nhé!';
+    const reply = (await chatComplete([
+      {
+        role: 'system',
+        content:
+          'Bạn là trợ lý CSKH của shop acc Netflix Trial (Netflix Trial 30 days — 20.000đ/slot, 100 slot). ' +
+          'Trả lời ngắn gọn, thân thiện, tiếng Việt. Hướng dẫn: nạp tiền qua trang "Nạp số dư" (QR tự động), ' +
+          'mua ở trang "Sản phẩm", đơn mới luôn "Đang xử lý" cho tới khi shop gửi thông tin. ' +
+          'Khi được hỏi gì ngoài phạm vi shop, trả lời lịch sự và đưa về chủ đề mua hàng/nạp tiền.',
+      },
+      ...history,
+    ])) || 'Xin lỗi, mình chưa trả lời được. Bạn thử lại nhé!';
     await addChatMessage(req.user.email, sid, 'assistant', reply);
     res.json({ ok: true, response: reply });
   } catch (err) {
     console.error('[chat] LLM error:', err.message);
-    res.status(500).json({ error: 'Trợ lý AI đang bận, thử lại sau ít phút' });
+    // Task 82: lỗi rõ ràng thay vì 'AI đang bận' mù mờ — user biết ngay thiếu gì
+    const detail = String(err.message || err).slice(0, 180);
+    let hint;
+    if (aiMode() !== 'public-api' && /fetch failed|ENETUNREACH|EHOSTUNREACH|ETIMEDOUT|ECONNREFUSED|internal-api/i.test(detail)) {
+      hint = 'Trợ lý AI chưa cấu hình cho môi trường này (thiếu env ZAI_API_KEY — key open platform z.ai, xem DEPLOY.md mục Chatbot AI)';
+    } else {
+      hint = 'Trợ lý AI đang bận, thử lại sau ít phút';
+    }
+    res.status(500).json({ error: hint, detail, mode: aiMode() });
   }
 });
 

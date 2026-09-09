@@ -56,7 +56,11 @@ Chi tiết vận hành:
 
 ## Tuỳ chọn
 
-- **Chatbot AI Lumi**: đặt env `ZAI_API_KEY` (và các env SDK z-ai-web-dev-sdk yêu cầu) trong Render → mục Environment.
+- **Trợ lý AI (Lumi)** — Task 82: `z-ai-web-dev-sdk` mặc định trỏ `internal-api.z.ai` (IP private 172.25.x — CHỈ chạy trong sandbox Z.ai, **Render không với tới được** → lỗi "Trợ lý AI đang bận").
+  Fix cho production: lấy **API key open platform** rồi set env `ZAI_API_KEY` (Render Environment hoặc `server/.env`):
+  - Nguồn key: https://z.ai/api (quốc tế) hoặc https://open.bigmodel.cn (TQ) — bản free có GLM-4.5-Flash
+  - Optional env: `ZAI_MODEL` (mặc định `glm-4.5-air`; có thể `glm-4.5-flash` free / `glm-4.6` tốt hơn), `ZAI_BASE_URL` (mặc định `https://api.z.ai/api/paas/v4`)
+  - Set xong → /api/chat tự đổi sang public API (module `server/src/ai.js` 2 chế độ); sandbox không set key vẫn chạy SDK internal như cũ
 - **Đổi JWT_SECRET**: render.yaml đang `generateValue: true` (Render tự sinh) — an toàn hơn mặc định.
 
 ## Chạy local chế độ deploy
