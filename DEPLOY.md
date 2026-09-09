@@ -41,11 +41,15 @@ Body ví dụ: `{"content":"NAP100001","amount":50000,"id":"GD123"}` — nạp t
 Chi tiết vận hành:
 
 - **Render production**: boot đọc `.env` → nối Turso cloud. Muốn thay token sau này: set `LIBSQL_URL`/`LIBSQL_AUTH_TOKEN` trong Render Environment (process.env **ưu tiên hơn** .env), rồi xoá 2 dòng trong .env.
-- **Sandbox/dev** vẫn chạy SQLite local (test residue không dính DB production):
+- **Sandbox/Preview Panel (Task 81 — CHẾ ĐỘ MẶC ĐỊNH: ĐỒNG BỘ với live)**: Express sandbox đọc .env → nối **cùng DB Turso** với Render → Preview Panel và live **dùng chung 1 dữ liệu thật** (ghi ở đâu cũng thấy ngay ở bên kia, zero delay):
+  ```bash
+  cd server && ( setsid nohup node src/index.js >> /tmp/server-3001.log 2>&1 < /dev/null & )
+  ```
+  ⚠️ Vì dùng chung DB production: thao tác trên Preview (đăng ký/nạp/mua) là THẬT — muốn test không dính dữ liệu thật, tạm chạy chế độ cách ly:
   ```bash
   cd server && ( LIBSQL_URL= LIBSQL_AUTH_TOKEN= setsid nohup node src/index.js >> /tmp/server-3001.log 2>&1 < /dev/null & )
   ```
-  (empty override vô hiệu hoá .env vì dotenv không đè process.env đã set)
+  (empty override vô hiệu hoá .env vì dotenv không đè process.env đã set; nhớ chạy lại lệnh mặc định để trở về chế độ đồng bộ)
 - 🔐 **Bảo mật**: repo đang public + token read-write trong .env → ai clone được repo đều đọc/ghi được DB. Khuyến nghị mạnh: **chuyển repo về private**, hoặc rotate token (`turso db tokens create sales-luongkun`) rồi set vào Render Environment thay vì .env.
 - **DB trắng mới**: bỏ 2 dòng creds trong .env → boot tự tạo bảng + seed demo (admin/123456) — hành vi tự bootstrap vẫn giữ.
 - Webhook secret giữ nguyên `3730daead...` (đã import baseline) — API key nạp tiền không đổi.
